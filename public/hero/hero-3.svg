@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <radialGradient id="rg3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1200 520) rotate(90) scale(680 1020)">
+      <stop stop-color="#22C55E" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#050505" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1920" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#22C55E" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#22C55E" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur3" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="130"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#050505"/>
+  <rect width="1920" height="1080" fill="url(#rg3)"/>
+
+  <g opacity="0.85" filter="url(#blur3)">
+    <circle cx="1560" cy="420" r="380" fill="#22C55E" fill-opacity="0.14"/>
+    <circle cx="760" cy="760" r="340" fill="#22C55E" fill-opacity="0.12"/>
+    <circle cx="380" cy="260" r="240" fill="#22C55E" fill-opacity="0.10"/>
+  </g>
+
+  <rect x="-180" y="160" width="2280" height="110" rx="55" fill="url(#accent)" opacity="0.85"/>
+  <rect x="-240" y="820" width="2400" height="140" rx="70" fill="url(#accent)" opacity="0.55"/>
+
+  <g opacity="0.12">
+    <path d="M0 1020C420 860 760 980 1120 860C1460 750 1620 600 1920 480" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 960C420 800 760 920 1120 800C1460 690 1620 540 1920 420" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 900C420 740 760 860 1120 740C1460 630 1620 480 1920 360" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+</svg>

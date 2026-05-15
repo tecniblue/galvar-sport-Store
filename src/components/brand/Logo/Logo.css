@@ -1,0 +1,294 @@
+:root {
+  --neon-green: #00ff88;
+  --glitch-red: #ff003c;
+  --glitch-cyan: #00f2ff;
+  --black: #000000;
+}
+
+.logo-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.3s ease;
+}
+
+.logo-container:hover {
+  transform: scale(1.05);
+}
+
+/* Registro Marcario (R) */
+.registered-mark {
+  position: absolute;
+  top: 5px;
+  right: -45px;
+  width: clamp(24px, 4vw, 32px);
+  height: clamp(24px, 4vw, 32px);
+  border: 1.5px solid var(--neon-green);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--neon-green);
+  font-size: clamp(12px, 2vw, 16px);
+  font-weight: 900;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* Texto Principal GALVAR */
+.brand-title {
+  position: relative;
+  margin: 0;
+  font-size: clamp(50px, 12vw, 100px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: white;
+  text-transform: uppercase;
+  line-height: 0.9;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.g-neon {
+  color: var(--neon-green);
+  text-shadow: 0 0 20px var(--neon-green);
+}
+
+/* Capas Glitch RGB */
+.glitch-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  pointer-events: none;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.red-layer {
+  color: var(--glitch-red);
+  z-index: -1;
+  animation: glitch-anim-red 4s infinite linear alternate-reverse;
+}
+
+.cyan-layer {
+  color: var(--glitch-cyan);
+  z-index: -2;
+  animation: glitch-anim-cyan 4s infinite linear alternate;
+}
+
+/* Fila Inferior SPORT */
+.brand-subline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+/* Triángulos de Velocidad */
+.velocity-arrows {
+  display: flex;
+  gap: 6px;
+}
+
+/* Estilo base para los triángulos */
+.arrow-svg {
+  width: clamp(14px, 3vw, 24px);
+  height: auto;
+  filter: drop-shadow(0 0 5px var(--neon-green));
+  animation: arrow-flow 1.5s infinite;
+}
+
+.arrow-filled {
+  fill: var(--neon-green);
+}
+
+.arrow-outline {
+  fill: var(--black);
+  stroke: var(--neon-green);
+  stroke-width: 1.2;
+}
+
+.velocity-arrows svg:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.velocity-arrows svg:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.sport-text {
+  color: var(--neon-green);
+  font-size: clamp(22px, 5.5vw, 44px);
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-shadow: 0 0 15px var(--neon-green);
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* ANIMACIONES */
+@keyframes glitch-anim-red {
+
+  0%,
+  100% {
+    transform: translate(0);
+    clip-path: inset(0);
+  }
+
+  92% {
+    transform: translate(-4px, 2px);
+    clip-path: inset(20% 0 50% 0);
+  }
+
+  94% {
+    transform: translate(4px, -2px);
+    clip-path: inset(60% 0 10% 0);
+  }
+
+  96% {
+    transform: translate(-2px, 0);
+    clip-path: inset(10% 0 80% 0);
+  }
+}
+
+@keyframes glitch-anim-cyan {
+
+  0%,
+  100% {
+    transform: translate(0);
+    clip-path: inset(0);
+  }
+
+  92% {
+    transform: translate(4px, -2px);
+    clip-path: inset(50% 0 20% 0);
+  }
+
+  94% {
+    transform: translate(-4px, 2px);
+    clip-path: inset(10% 0 60% 0);
+  }
+
+  96% {
+    transform: translate(2px, 0);
+    clip-path: inset(80% 0 10% 0);
+  }
+}
+
+@keyframes arrow-flow {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(5px);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    opacity: 0.7;
+    box-shadow: 0 0 5px var(--neon-green);
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 15px var(--neon-green);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .logo-container {
+    align-items: center;
+  }
+
+  .brand-title {
+    text-align: center;
+  }
+
+  .brand-subline {
+    justify-content: center;
+  }
+
+  .registered-mark {
+    top: 0;
+    right: auto;
+    left: -45px;
+  }
+}
+
+/* Navbar Logo Variant */
+.navbar-logo {
+  transform: scale(0.75);
+  transform-origin: top left;
+  margin-right: -10px;
+  transition: all 0.3s ease;
+  width: auto;
+}
+
+.navbar-logo:hover {
+  transform: scale(0.78) translateY(-2px);
+}
+
+.navbar-logo .registered-mark {
+  display: none;
+}
+
+.navbar-logo .brand-title {
+  font-size: 42px;
+  letter-spacing: 2px;
+  line-height: 0.85;
+}
+
+.navbar-logo .sport-text {
+  font-size: 18px;
+  letter-spacing: 3.5px;
+  font-weight: 800;
+}
+
+.navbar-logo .brand-subline {
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.navbar-logo .arrow-svg {
+  width: 26px;
+  height: 18px;
+}
+
+@media (max-width: 768px) {
+  .navbar-logo {
+    transform: scale(0.6);
+    margin-right: -20px;
+  }
+
+  .navbar-logo:hover {
+    transform: scale(0.63) translateY(-2px);
+  }
+
+  .navbar-logo .brand-title {
+    font-size: 36px;
+  }
+
+  .navbar-logo .sport-text {
+    font-size: 15px;
+  }
+}
+
+/* Static Logo Variant (No animations) */
+.logo-static,
+.logo-static * {
+  animation: none !important;
+}

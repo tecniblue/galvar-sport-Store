@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <radialGradient id="rg2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(720 420) rotate(90) scale(700 980)">
+      <stop stop-color="#22C55E" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#050505" stop-opacity="1"/>
+    </radialGradient>
+    <filter id="blur2" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="110"/>
+    </filter>
+    <linearGradient id="grid" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#050505"/>
+  <rect width="1920" height="1080" fill="url(#rg2)"/>
+
+  <g opacity="0.95" filter="url(#blur2)">
+    <circle cx="520" cy="240" r="320" fill="#22C55E" fill-opacity="0.18"/>
+    <circle cx="1320" cy="680" r="420" fill="#22C55E" fill-opacity="0.12"/>
+  </g>
+
+  <g opacity="0.16">
+    <path d="M1800 0C1600 240 1460 460 1180 560C900 660 620 620 360 760C200 846 110 950 0 1080" stroke="#22C55E" stroke-opacity="0.35" stroke-width="6"/>
+    <path d="M1920 180C1700 420 1520 640 1260 740C980 840 700 820 420 940C280 1000 170 1040 0 1080" stroke="#22C55E" stroke-opacity="0.25" stroke-width="4"/>
+  </g>
+
+  <g opacity="0.10">
+    <path d="M0 0H1920V1080H0V0Z" fill="url(#grid)"/>
+    <path d="M0 180H1920" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 360H1920" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 540H1920" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 720H1920" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M0 900H1920" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M240 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M480 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M720 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M960 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M1200 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M1440 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M1680 0V1080" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+</svg>

@@ -1,0 +1,156 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@700;800;900&family=Oswald:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+:root {
+  --neon-green: #22c55e;
+}
+
+html {
+  font-size: 14px;
+  scroll-behavior: smooth;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  @apply bg-[#050505] text-white antialiased;
+  font-family: "Inter", sans-serif;
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.neon-text {
+  text-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+
+.neon-border {
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  transition: all 0.3s ease;
+}
+
+.neon-border:hover {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+}
+
+.glass {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.product-label-bg {
+  background: radial-gradient(
+    circle,
+    rgba(34, 197, 94, 0.08) 0%,
+    rgba(0, 0, 0, 0) 70%
+  );
+}
+
+@keyframes heroZoom {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(var(--hero-zoom-scale, 1.07));
+  }
+}
+
+.hero-bg-zoom {
+  --hero-zoom-scale: 1.07;
+  animation: heroZoom 14s ease-in-out infinite alternate;
+  will-change: transform;
+  transform-origin: 50% 35%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg-zoom {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-bg-zoom {
+    --hero-zoom-scale: 1.03;
+    transform-origin: 50% 25%;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #000;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-zinc-800 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-green);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  @apply text-zinc-600;
+}
+
+@keyframes galvarCaretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.galvar-type-caret {
+  display: inline-block;
+  width: 0.75ch;
+  height: 1em;
+  margin-left: 0.15ch;
+  border-right: 2px solid #39ff14;
+  filter: drop-shadow(0 0 10px rgba(57, 255, 20, 0.65));
+  animation: galvarCaretBlink 0.9s steps(1, end) infinite;
+}
+
+#cart-drawer,
+#details-modal,
+#product-modal {
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease;
+}
