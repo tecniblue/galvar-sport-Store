@@ -1,9 +1,10 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { Package, Plus, Trash2, Search, Edit3, Star, EyeOff, Eye, AlertTriangle, TrendingDown, CheckCircle2, Minus, Sparkles } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import ProductModal from "./ProductModal";
 import { SimpleModal } from "../../../components/ui";
 import FeaturedManager from "../featured/FeaturedManager";
+import { updateProduct, deleteProduct as apiDeleteProduct, createCategory, updateCategory, deleteCategory as apiDeleteCategory } from '../../../services/api';
 
 // Stock status helper
 const stockStatus = (s) => {
@@ -39,7 +40,14 @@ const syncFeaturedProduct = (product, nextFeatured, currentProducts) => {
 };
 
 export default function Inventory() {
-  const app = useContext(AppContext);
+  const app = {
+    products: useCatalogStore(s => s.products),
+    setProducts: useCatalogStore(s => s.setProducts),
+    categories: useCatalogStore(s => s.categories),
+    fighters: useCatalogStore(s => s.fighters),
+    alliances: useCatalogStore(s => s.alliances),
+    cart: useCartStore(s => s.cart)
+  };
   const products = app?.products ?? EMPTY_LIST;
   const setProducts = app?.setProducts ?? NOOP;
   const categories = app?.categories ?? EMPTY_LIST;       // includes "Todos"
@@ -101,18 +109,39 @@ export default function Inventory() {
     featured: products.filter(p => p.isFeatured).length,
   }), [products]);
 
-  const adjustStock = useCallback((id, delta) => {
-    setProducts(prev => prev.map(p =>
-      p.id === id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + delta) } : p
-    ));
-  }, [setProducts]);
+  const adjustStock = useCallback(async (id, delta) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const newStock = Math.max(0, (Number(product.stock) || 0) + delta);
+    
+    try {
+      await updateProduct(id, { ...product, stock: newStock });
+      setProducts(prev => prev.map(p =>
+        p.id === id ? { ...p, stock: newStock } : p
+      ));
+    } catch (e) {
+      console.error(e);
+      alert("Error al actualizar stock");
+    }
+  }, [setProducts, products]);
 
-  const commitStockEdit = useCallback((id) => {
+  const commitStockEdit = useCallback(async (id) => {
     const n = parseInt(stockDraft, 10);
-    if (!isNaN(n) && n >= 0) setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: n } : p));
+    if (!isNaN(n) && n >= 0) {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        try {
+          await updateProduct(id, { ...product, stock: n });
+          setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: n } : p));
+        } catch (e) {
+           console.error(e);
+           alert("Error al actualizar stock");
+        }
+      }
+    }
     setEditingStockId(null);
     setStockDraft("");
-  }, [stockDraft, setProducts]);
+  }, [stockDraft, setProducts, products]);
 
   const deleteCategoryCandidates = useMemo(
     () => managedCategories.filter((category) => category.name !== categoryToDelete),
@@ -137,32 +166,40 @@ export default function Inventory() {
     setIsModalOpen(true);
   };
 
-  const deleteProduct = (id) => {
+  const deleteProduct = async (id) => {
     if (!window.confirm("Seguro que quieres eliminar este producto?")) return;
-    setProducts((prev) => prev.filter((product) => product.id !== id));
+    try {
+      await apiDeleteProduct(id);
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
-  const toggleProductActive = (id) => {
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === id
-          ? { ...product, active: !(product.active !== false) }
-          : product,
-      ),
-    );
+  const toggleProductActive = async (id) => {
+    const p = products.find(prod => prod.id === id);
+    if(!p) return;
+    try {
+      await updateProduct(id, { ...p, active: !(p.active !== false) });
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.id === id ? { ...product, active: !(product.active !== false) } : product
+        )
+      );
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
-  const toggleProductFeatured = (id) => {
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === id
-          ? syncFeaturedProduct(product, !product.isFeatured, prev)
-          : product,
-      ),
-    );
+  const toggleProductFeatured = async (id) => {
+    const p = products.find(prod => prod.id === id);
+    if(!p) return;
+    try {
+      const updatedP = syncFeaturedProduct(p, !p.isFeatured, products);
+      await updateProduct(id, updatedP);
+      setProducts((prev) =>
+        prev.map((product) => product.id === id ? updatedP : product)
+      );
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     const cleaned = newCategory.trim();
     if (!cleaned) {
       setCategoryError("Ingresa un nombre de categoria.");
@@ -177,10 +214,13 @@ export default function Inventory() {
       return;
     }
 
-    setCategories((prev) => [...prev, { name: cleaned, subcategories: [] }]);
-    setActiveCategory(cleaned);
-    setNewCategory("");
-    setCategoryError("");
+    try {
+      await createCategory({ name: cleaned, subcategories: [] });
+      setCategories((prev) => [...prev, { name: cleaned, subcategories: [] }]);
+      setActiveCategory(cleaned);
+      setNewCategory("");
+      setCategoryError("");
+    } catch (e) { console.error(e); setCategoryError("Error al crear"); }
   };
 
   const openRenameCategory = (category) => {
@@ -190,7 +230,7 @@ export default function Inventory() {
     setCategoryError("");
   };
 
-  const handleRenameCategory = () => {
+  const handleRenameCategory = async () => {
     const cleaned = renameCategoryValue.trim();
     if (!editingCategory) return;
 
@@ -209,47 +249,48 @@ export default function Inventory() {
       return;
     }
 
-    setCategories((prev) =>
-      prev.map((category) => (category.name === editingCategory ? { ...category, name: cleaned } : category)),
-    );
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.cat === editingCategory ? { ...product, cat: cleaned } : product,
-      ),
-    );
-    if (activeCategory === editingCategory) {
-      setActiveCategory(cleaned);
+    try {
+      await updateCategory(editingCategory, { newName: cleaned, subcategories: editingCategoryObj?.subcategories || [] });
+      setCategories((prev) =>
+        prev.map((category) => (category.name === editingCategory ? { ...category, name: cleaned } : category)),
+      );
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.cat === editingCategory ? { ...product, cat: cleaned } : product,
+        ),
+      );
+      if (activeCategory === editingCategory) {
+        setActiveCategory(cleaned);
+      }
+      setEditingCategory(null);
+      setRenameCategoryValue("");
+      setCategoryError("");
+      setSubcatDraft("");
+    } catch (e) {
+      console.error(e); setCategoryError("Error");
     }
-    setEditingCategory(null);
-    setRenameCategoryValue("");
-    setCategoryError("");
-    setSubcatDraft("");
   };
 
-  const handleAddSubcat = () => {
+  const handleAddSubcat = async () => {
     const val = subcatDraft.trim();
     if (!val || !editingCategoryObj) return;
     if (!(editingCategoryObj.subcategories ?? []).includes(val)) {
-      setCategories(prev =>
-        prev.map(c =>
-          c.name === editingCategory
-            ? { ...c, subcategories: [...(c.subcategories ?? []), val] }
-            : c
-        )
-      );
+      const newSubcats = [...(editingCategoryObj.subcategories ?? []), val];
+      try {
+        await updateCategory(editingCategory, { subcategories: newSubcats });
+        setCategories(prev => prev.map(c => c.name === editingCategory ? { ...c, subcategories: newSubcats } : c));
+      } catch (e) { console.error(e); alert("Error"); }
     }
     setSubcatDraft("");
   };
 
-  const handleRemoveSubcat = (subcat) => {
+  const handleRemoveSubcat = async (subcat) => {
     if (!editingCategoryObj) return;
-    setCategories(prev =>
-      prev.map(c =>
-        c.name === editingCategory
-          ? { ...c, subcategories: (c.subcategories ?? []).filter(s => s !== subcat) }
-          : c
-      )
-    );
+    const newSubcats = (editingCategoryObj.subcategories ?? []).filter(s => s !== subcat);
+    try {
+      await updateCategory(editingCategory, { subcategories: newSubcats });
+      setCategories(prev => prev.map(c => c.name === editingCategory ? { ...c, subcategories: newSubcats } : c));
+    } catch (e) { console.error(e); alert("Error"); }
   };
 
   const openDeleteCategory = (category) => {
@@ -260,7 +301,7 @@ export default function Inventory() {
     setCategoryError("");
   };
 
-  const handleConfirmDeleteCategory = () => {
+  const handleConfirmDeleteCategory = async () => {
     if (!categoryToDelete) return;
 
     if (productsInDeleteCategory.length > 0) {
@@ -273,35 +314,44 @@ export default function Inventory() {
         setCategoryError("Selecciona una categoria destino.");
         return;
       }
-
-      setProducts((prev) =>
-        prev.map((product) =>
-          product.cat === categoryToDelete
-            ? { ...product, cat: moveTargetCategory }
-            : product,
-        ),
-      );
     }
 
-    const remainingCategories = managedCategories.filter(
-      (category) => category.name !== categoryToDelete,
-    );
+    try {
+      await apiDeleteCategory(categoryToDelete, moveTargetCategory || undefined);
+      
+      if (productsInDeleteCategory.length > 0) {
+        setProducts((prev) =>
+          prev.map((product) =>
+            product.cat === categoryToDelete
+              ? { ...product, cat: moveTargetCategory }
+              : product,
+          ),
+        );
+      }
 
-    setCategories((prev) =>
-      prev.filter((category) => category.name !== categoryToDelete),
-    );
-
-    if (activeCategory === categoryToDelete) {
-      setActiveCategory(
-        productsInDeleteCategory.length > 0
-          ? moveTargetCategory
-          : remainingCategories[0]?.name ?? null,
+      const remainingCategories = managedCategories.filter(
+        (category) => category.name !== categoryToDelete,
       );
-    }
 
-    setCategoryToDelete(null);
-    setMoveTargetCategory("");
-    setCategoryError("");
+      setCategories((prev) =>
+        prev.filter((category) => category.name !== categoryToDelete),
+      );
+
+      if (activeCategory === categoryToDelete) {
+        setActiveCategory(
+          productsInDeleteCategory.length > 0
+            ? moveTargetCategory
+            : remainingCategories[0]?.name ?? null,
+        );
+      }
+
+      setCategoryToDelete(null);
+      setMoveTargetCategory("");
+      setCategoryError("");
+    } catch (e) {
+      console.error(e);
+      setCategoryError("Error al eliminar");
+    }
   };
 
   return (
@@ -523,6 +573,22 @@ export default function Inventory() {
                         <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border flex items-center gap-1 ${ss.color}`}>
                           <SIcon size={9}/>{ss.label}
                         </span>
+                        
+                        {/* Variant Badges */}
+                        {product.sizes && product.sizes.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-1 max-w-[120px]">
+                            {product.sizes.map(size => {
+                              const sInfo = (product.stockBySize || product.stock_by_size || {})[size];
+                              if (!sInfo) return null;
+                              return (
+                                <span key={size} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border ${sInfo.stock > 0 ? "bg-zinc-800 border-zinc-700 text-zinc-300" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+                                  {size}: {sInfo.stock}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         {isEditingStock ? (
                           <div className="flex items-center gap-1">
                             <input type="number" value={stockDraft} onChange={e => setStockDraft(e.target.value)}
@@ -533,21 +599,30 @@ export default function Inventory() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1">
-                            <button type="button" onClick={() => adjustStock(product.id, -1)}
-                              className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all">
+                            <button type="button" 
+                              onClick={() => adjustStock(product.id, -1)}
+                              disabled={product.sizes && product.sizes.length > 0}
+                              className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-20">
                               <Minus size={10}/>
                             </button>
-                            <button type="button" onClick={() => { setEditingStockId(product.id); setStockDraft(String(product.stock ?? 0)); }}
-                              className="min-w-[2.5rem] text-center text-[13px] font-black text-white tabular-nums px-2 py-0.5 rounded-lg hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-all">
+                            <button type="button" 
+                              onClick={() => { 
+                                if (product.sizes && product.sizes.length > 0) return;
+                                setEditingStockId(product.id); 
+                                setStockDraft(String(product.stock ?? 0)); 
+                              }}
+                              className={`min-w-[2.5rem] text-center text-[13px] font-black text-white tabular-nums px-2 py-0.5 rounded-lg transition-all ${product.sizes && product.sizes.length > 0 ? "" : "hover:bg-zinc-900 border border-transparent hover:border-zinc-800"}`}>
                               {product.stock ?? 0}
                             </button>
-                            <button type="button" onClick={() => adjustStock(product.id, 1)}
-                              className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all">
+                            <button type="button" 
+                              onClick={() => adjustStock(product.id, 1)}
+                              disabled={product.sizes && product.sizes.length > 0}
+                              className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-20">
                               <Plus size={10}/>
                             </button>
                           </div>
                         )}
-                        <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">unidades</span>
+                        <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">unidades total</span>
                       </div>
 
                       {/* Actions */}

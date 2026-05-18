@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, ShoppingBag, Phone, Mail, MapPin, Store, CreditCard, MessageSquare, Clock, CheckCircle2, XCircle, Truck, PackageCheck, Search, Download, Hash, ChevronRight, ArrowLeft, TrendingUp } from "lucide-react";
 import { fetchOrders, updateOrderStatus, deleteOrder } from "../../../services/api";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 
 // Valid forward transitions per status
 const ALLOWED_TRANSITIONS = {
@@ -178,6 +178,7 @@ function OrderDetail({ order, onStatusChange, onDelete, onBack, products }) {
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {item.sku && <span className="text-[9px] font-bold text-green-500 uppercase">#{item.sku}</span>}
                     {item.variant && <span className="text-[9px] font-bold text-zinc-500">{item.variant}</span>}
+                    {item.size && <span className="text-[9px] font-black text-amber-500 uppercase">Talla: {item.size}</span>}
                     <span className="text-[9px] font-bold text-zinc-600">x{itemQty(item)}</span>
                   </div>
                 </div>
@@ -270,7 +271,8 @@ function OrderRow({ order, isSelected, onClick, products }) {
 }
 
 export default function Orders() {
-  const { showNotification, products } = useContext(AppContext);
+  const showNotification = useUIStore(state => state.showNotification);
+  const products = useCatalogStore(state => state.products);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

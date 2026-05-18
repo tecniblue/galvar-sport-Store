@@ -1,8 +1,9 @@
-import React, { useContext, useState } from "react";
-import { AppContext } from "../../../context/AppContext";
+import React, { useState } from "react";
+import { useAuthStore } from "../../../store";
 
 export default function AdminAccessGate({ children }) {
-  const { isAdmin, loginAdmin } = useContext(AppContext);
+  const isAdmin = useAuthStore(state => state.isAdmin);
+  const loginAdmin = useAuthStore(state => state.loginAdmin);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -14,6 +15,7 @@ export default function AdminAccessGate({ children }) {
     e.preventDefault();
     try {
       setLoading(true);
+      setError("");
       await loginAdmin(email, password);
     } catch (err) {
       setError(err.message || "Credenciales invalidas");

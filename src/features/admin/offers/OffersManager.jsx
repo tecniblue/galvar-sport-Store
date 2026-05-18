@@ -1,21 +1,25 @@
 import React, { useContext, useState } from "react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { Zap, Save, Plus, Trash2, Calendar, Tag, DollarSign } from "lucide-react";
+import { updateProduct } from "../../../services/api";
 
 export default function OffersManager() {
-  const { products, setProducts, showNotification } = useContext(AppContext);
+  const products = useCatalogStore(state => state.products);
+  const setProducts = useCatalogStore(state => state.setProducts);
+  const showNotification = useUIStore(state => state.showNotification);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);
 
   const weeklyOffers = products.filter(p => p.isWeeklyOffer);
   const nonOffers = products.filter(p => !p.isWeeklyOffer);
 
-  const handleToggleOffer = (product) => {
-    const next = products.map(p => 
-      p.id === product.id ? { ...p, isWeeklyOffer: !p.isWeeklyOffer, offerOrder: p.offerOrder || 0 } : p
-    );
-    setProducts(next);
-    showNotification(product.isWeeklyOffer ? "Oferta eliminada" : "Producto añadido a ofertas");
+  const handleToggleOffer = async (product) => {
+    const nextProduct = { ...product, isWeeklyOffer: !product.isWeeklyOffer, offerOrder: product.offerOrder || 0 };
+    try {
+      await updateProduct(product.id, nextProduct);
+      setProducts(prev => prev.map(p => p.id === product.id ? nextProduct : p));
+      showNotification(product.isWeeklyOffer ? "Oferta eliminada" : "Producto añadido a ofertas");
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
   const startEdit = (product) => {
@@ -28,12 +32,14 @@ export default function OffersManager() {
     setDraft(null);
   };
 
-  const saveEdit = () => {
-    const next = products.map(p => p.id === draft.id ? draft : p);
-    setProducts(next);
-    setEditingId(null);
-    setDraft(null);
-    showNotification("Oferta actualizada correctamente");
+  const saveEdit = async () => {
+    try {
+      await updateProduct(draft.id, draft);
+      setProducts(prev => prev.map(p => p.id === draft.id ? draft : p));
+      setEditingId(null);
+      setDraft(null);
+      showNotification("Oferta actualizada correctamente");
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
   const handleChange = (field, value) => {

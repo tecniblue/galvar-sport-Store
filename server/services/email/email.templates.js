@@ -15,15 +15,14 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
   const itemsHtml = order.items
     .map((item) => {
       const quantity = getItemQuantity(item);
-      const variant = item.variant
-        ? `Variante: ${toHtmlText(item.variant)} | `
-        : "";
+      const variant = item.variant ? `Variante: ${toHtmlText(item.variant)} | ` : "";
+      const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
 
       return `
         <tr>
           <td>
             <div class="item-name">${toHtmlText(item.name)}</div>
-            <div class="item-meta">${variant}Cantidad: ${quantity}</div>
+            <div class="item-meta">${size}${variant}Cantidad: ${quantity}</div>
           </td>
           <td style="text-align: right; font-weight: 600;">${formatCurrency(item.price * quantity)}</td>
         </tr>
@@ -150,12 +149,13 @@ export const getAdminPurchaseTemplate = (order) => {
     .map((item) => {
       const quantity = getItemQuantity(item);
       const variant = item.variant ? `Var: ${toHtmlText(item.variant)} | ` : "";
+      const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
 
       return `
         <tr>
           <td style="padding: 15px 0; border-bottom: 1px solid #e4e4e7;">
             <strong style="color: #18181b; font-size: 15px;">${toHtmlText(item.name)}</strong><br/>
-            <span style="font-size:13px; color:#71717a; margin-top: 4px; display: inline-block;">${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</span>
+            <span style="font-size:13px; color:#71717a; margin-top: 4px; display: inline-block;">${size}${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</span>
           </td>
           <td style="text-align: right; font-weight: 600; color: #18181b; padding: 15px 0; border-bottom: 1px solid #e4e4e7;">${formatCurrency(item.price * quantity)}</td>
         </tr>

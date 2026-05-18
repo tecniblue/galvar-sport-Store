@@ -1,16 +1,27 @@
 import React, { useContext, useState } from "react";
 import { Users, Plus, Trash2, Edit } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import FighterModal from "./FighterModal";
 
+import { deleteFighter } from "../../../services/api";
+
 export default function Fighters() {
-  const { fighters, setFighters } = useContext(AppContext);
+  const fighters = useCatalogStore(state => state.fighters);
+  const setFighters = useCatalogStore(state => state.setFighters);
+  const showNotification = useUIStore(state => state.showNotification);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFighter, setEditingFighter] = useState(null);
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("¿Eliminar guerrero?")) {
-      setFighters(prev => prev.filter(f => f.id !== id));
+      try {
+        await deleteFighter(id);
+        setFighters(prev => prev.filter(f => f.id !== id));
+        showNotification("Guerrero eliminado");
+      } catch (error) {
+        console.error("Error deleting fighter:", error);
+        showNotification("Error al eliminar el guerrero");
+      }
     }
   };
 

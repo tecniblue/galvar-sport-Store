@@ -33,3 +33,9 @@ node_modules
 *.njsproj
 *.sln
 *.sw?
+
+/src/generated/prisma
+/server/generated
+scratch*
+query_db.js
+test_tx.js

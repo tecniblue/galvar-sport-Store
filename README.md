@@ -1,14 +1,28 @@
-# Galvar Sport - Plataforma de Equipamiento Deportivo
+# Galvar Sport - Plataforma de Equipamiento Deportivo (v1.2.0 - Stable Release)
 
-Galvar Sport es una plataforma moderna de comercio electrónico especializada en equipamiento para deportes de combate y entrenamiento. Construida con tecnologías de vanguardia para ofrecer una experiencia rápida, segura y profesional.
+Galvar Sport es una plataforma moderna y de alto rendimiento de comercio electrónico especializada en equipamiento profesional para deportes de contacto, rendimiento y protección. Construida con tecnologías de vanguardia para ofrecer una experiencia rápida, segura y completamente escalable.
+
+---
+
+## ✨ Características y Novedades (v1.2.0)
+
+- **Gestión Avanzada de Inventario por Variante**: Sistema de stock granular por talla/variante con validación en tiempo real durante la selección y el proceso de pago para prevenir sobreventas.
+- **Migración Completa a PostgreSQL + Prisma ORM**: Arquitectura robusta y escalable utilizando Prisma Client con conexión nativa a PostgreSQL para garantizar la integridad y concurrencia de datos.
+- **Mercado Pago Checkout Bricks**: Integración nativa y optimizada del SDK de Mercado Pago con manejo robusto de webhooks para confirmación inmediata de pedidos.
+- **Diseño Premium & Glassmorphism**: Interfaz moderna con tema oscuro, efectos de cristal (glassmorphism), texturas avanzadas y micro-animaciones dinámicas.
+- **Sección de Filosofía y Ubicación Interactiva**: Integración de la Misión y Visión institucional junto con un mapa interactivo de Google Maps adaptado al diseño Dark Mode.
+
+---
 
 ## 🚀 Tecnologías
 
-- **Frontend**: React 19 + Vite + Tailwind CSS
-- **Backend**: Express.js (V2)
-- **Base de Datos**: PostgreSQL
-- **Pagos**: Integración con Mercado Pago
-- **Notificaciones**: Sistema de correos con Nodemailer
+- **Frontend**: React 19 + Vite + Tailwind CSS + Lucide React
+- **Backend**: Express.js (V2) + Node.js
+- **ORM & Base de Datos**: Prisma ORM + PostgreSQL
+- **Pagos**: SDK de Mercado Pago (Payment Bricks & Webhooks)
+- **Notificaciones**: Sistema de correos automatizados con Nodemailer
+
+---
 
 ## 🛠️ Configuración Local
 
@@ -16,7 +30,7 @@ Galvar Sport es una plataforma moderna de comercio electrónico especializada en
 
 - Node.js (v18+)
 - PostgreSQL (v14+)
-- Una cuenta de Mercado Pago (para pruebas de pago)
+- Cuenta de Mercado Pago (credenciales de producción/sandbox)
 
 ### Instalación
 
@@ -32,45 +46,50 @@ Galvar Sport es una plataforma moderna de comercio electrónico especializada en
    ```
 
 3. Configura el archivo `.env`:
-   Copia el archivo `.env.example` a `.env` y rellena las variables:
+   Copia el archivo `.env.example` a `.env` y rellena las variables obligatorias:
    ```bash
    cp .env.example .env
    ```
+   Asegúrate de definir la URL de conexión a PostgreSQL y las credenciales de Mercado Pago:
+   ```env
+   DATABASE_URL="postgresql://usuario:password@localhost:5432/galvar_db?schema=public"
+   MERCADOPAGO_ACCESS_TOKEN="APP_USR-..."
+   ```
 
-4. Configura PostgreSQL:
-   Crea una base de datos y un usuario, luego actualiza las credenciales en el `.env`:
+4. Genera el cliente de Prisma y ejecuta las migraciones:
    ```bash
-   PGHOST="localhost"
-   PGUSER="tu_usuario"
-   PGDATABASE="galvar_db"
-   PGPASSWORD="tu_password"
-   PGPORT=5432
+   npx prisma generate
+   npx prisma migrate deploy
    ```
 
 ### Desarrollo
 
-Para iniciar tanto el cliente como el servidor en modo desarrollo:
+Para iniciar de forma concurrente el servidor backend y el entorno de desarrollo frontend:
 
 ```bash
 npm run dev
 ```
 
 O por separado:
-- Servidor: `npm run dev:server`
-- Cliente: `npm run dev:client`
+- Servidor Backend: `npm run dev:server`
+- Cliente Frontend: `npm run dev:client`
 
-## 📦 Despliegue
+---
 
-Para generar el build de producción del cliente:
-```bash
-npm run build
-```
+## 📦 Despliegue en Producción
 
-El servidor puede iniciarse en producción con:
-```bash
-npm start
-```
+1. Genera el build optimizado del cliente:
+   ```bash
+   npm run build
+   ```
+
+2. Inicia el servidor en modo producción:
+   ```bash
+   npm start
+   ```
+
+---
 
 ## 📄 Licencia
 
-Este proyecto es para uso exclusivo de Galvar Sport.
+Este proyecto es para uso comercial exclusivo de **Galvar Sport**. Todos los derechos reservados.

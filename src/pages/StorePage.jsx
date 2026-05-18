@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState, useCallback } from "react";
-import { AppContext } from "../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../store";
 import { Search, Filter } from "lucide-react";
 import { ProductCard, ProductDetailsModal } from "../components/product";
 
@@ -9,7 +9,9 @@ const formatCLP = (value) => {
 };
 
 export default function StorePage() {
-  const { products, categories, addToCart } = useContext(AppContext);
+  const products = useCatalogStore(state => state.products);
+  const categories = useCatalogStore(state => state.categories);
+  const addToCart = useCartStore(state => state.addToCart);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Todos");
   const [activeSubcat, setActiveSubcat] = useState("Todos");

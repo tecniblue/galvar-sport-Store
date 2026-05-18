@@ -1,14 +1,14 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShoppingCart, Menu, X } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { Logo } from "../../brand";
 import "./Navbar.css";
 
 const NAVBAR_SCROLL_OFFSET_PX = 96;
 
 export default function Navbar({ toggleCart }) {
-  const { cart } = useContext(AppContext);
+  const cart = useCartStore(state => state.cart);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);

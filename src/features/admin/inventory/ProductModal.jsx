@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Upload, Trash2, Tag } from 'lucide-react';
-import { AppContext } from '../../../context/AppContext';
+import { X, Upload, Trash2, Tag, Zap } from 'lucide-react';
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import { createProduct, updateProduct } from '../../../services/api';
 
 export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
-  const { setProducts, categories } = useContext(AppContext);
+  const setProducts = useCatalogStore(state => state.setProducts);
+  const categories = useCatalogStore(state => state.categories);
   const fileInputRef = useRef(null);
 
   const categoryOptions = useMemo(() => {
@@ -29,6 +31,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
       desc: "",
       stock: "",
       sizes: [],
+      stockBySize: {},
       images: [],
       isFeatured: false,
       isWeeklyOffer: false,
@@ -37,6 +40,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
       offerStartDate: "",
       offerEndDate: "",
       offerOrder: 0,
+      featuredOrder: null,
     };
   }, [categoryOptions]);
 
@@ -55,6 +59,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
           : String(editingProduct.stock),
       badge: editingProduct.badge ?? "",
       sizes: Array.isArray(editingProduct.sizes) ? editingProduct.sizes : [],
+      stockBySize: editingProduct.stockBySize || editingProduct.stock_by_size || {},
       images: Array.isArray(editingProduct.images) ? editingProduct.images : [],
       isWeeklyOffer: editingProduct.isWeeklyOffer || false,
       offerPrice: editingProduct.offerPrice === null || editingProduct.offerPrice === undefined ? "" : String(editingProduct.offerPrice),
@@ -72,7 +77,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
     if (isOpen) {
       setFormData(initialFormData);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isOpen, editingProduct?.id]);
 
   useEffect(() => {
@@ -103,7 +108,45 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
     }));
   };
 
-  const handleSave = () => {
+  const addSizeVariant = (size) => {
+    const s = String(size).trim().toUpperCase();
+    if (!s) return;
+    setFormData(prev => ({
+      ...prev,
+      sizes: [...new Set([...prev.sizes, s])],
+      stockBySize: {
+        ...prev.stockBySize,
+        [s]: prev.stockBySize[s] || { stock: 0, sku: "", active: true }
+      }
+    }));
+  };
+
+  const removeSizeVariant = (size) => {
+    setFormData(prev => {
+      const nextStock = { ...prev.stockBySize };
+      delete nextStock[size];
+      return {
+        ...prev,
+        sizes: prev.sizes.filter(s => s !== size),
+        stockBySize: nextStock
+      };
+    });
+  };
+
+  const updateVariantInfo = (size, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      stockBySize: {
+        ...prev.stockBySize,
+        [size]: {
+          ...prev.stockBySize[size],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const handleSave = async () => {
     const sku = formData.sku.trim();
     const name = formData.name.trim();
     if (!sku || !name) {
@@ -128,6 +171,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
       price: Number.isFinite(priceNumber) ? priceNumber : 0,
       stock: Number.isFinite(stockNumber) ? stockNumber : 0,
       sizes: Array.isArray(formData.sizes) ? formData.sizes : [],
+      stockBySize: formData.stockBySize || {},
       images: Array.isArray(formData.images) ? formData.images : [],
       isWeeklyOffer: formData.isWeeklyOffer || false,
       offerPrice: formData.offerPrice === "" ? null : Number(formData.offerPrice),
@@ -135,15 +179,27 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
       offerStartDate: formData.offerStartDate || null,
       offerEndDate: formData.offerEndDate || null,
       offerOrder: Number(formData.offerOrder) || 0,
+      featuredOrder: formData.featuredOrder ?? null,
     };
 
-    setProducts(prev => {
+    try {
       if (editingProduct?.id != null) {
-        return prev.map((p) => (p.id === editingProduct.id ? productToSave : p));
+        await updateProduct(productToSave.id, productToSave);
+      } else {
+        await createProduct(productToSave);
       }
-      return [...prev, productToSave];
-    });
-    onClose();
+
+      setProducts(prev => {
+        if (editingProduct?.id != null) {
+          return prev.map((p) => (p.id === editingProduct.id ? productToSave : p));
+        }
+        return [...prev, productToSave];
+      });
+      onClose();
+    } catch (error) {
+      console.error("Error saving product:", error);
+      alert("Error al guardar el producto.");
+    }
   };
 
   const calculateDiscountInfo = () => {
@@ -226,66 +282,95 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
             <input placeholder="STOCK" type="number" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-xs" />
           </div>
 
-          {/* Tallas / Onzas Selector */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Tag size={12} className="text-zinc-500" />
-              <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Tallas / Onzas Disponibles</p>
+          {/* Variantes / Tallas con Stock */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Tag size={12} className="text-zinc-500" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Gestión de Tallas / Variantes</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setFormData({ ...formData, sizes: [], stockBySize: {} })}
+                className="text-[9px] font-bold text-zinc-600 hover:text-red-400 transition-colors uppercase tracking-tighter"
+              >
+                Limpiar todo
+              </button>
             </div>
+
             <div className="flex gap-2">
               <select
                 className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-xs uppercase flex-grow"
                 onChange={(e) => {
-                  const val = e.target.value;
-                  if (val && !formData.sizes.includes(val)) {
-                    setFormData(prev => ({ ...prev, sizes: [...prev.sizes, val] }));
-                  }
-                  e.target.value = ""; // reset after select
+                  addSizeVariant(e.target.value);
+                  e.target.value = "";
                 }}
                 defaultValue=""
               >
-                <option value="" disabled>Selecciona una talla / onza...</option>
+                <option value="" disabled>Seleccionar preset...</option>
                 {SIZE_PRESETS.map(size => (
                   <option key={size} value={size}>{size}</option>
                 ))}
               </select>
               <input
-                placeholder="Otras (Enter)"
+                placeholder="Custom (Enter)"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    const newSize = e.target.value.trim().toUpperCase();
-                    if (newSize && !formData.sizes.includes(newSize)) {
-                      setFormData((prev) => ({
-                        ...prev,
-                        sizes: [...prev.sizes, newSize],
-                      }));
-                    }
+                    addSizeVariant(e.target.value);
                     e.target.value = "";
                   }
                 }}
                 className="w-1/3 bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-xs uppercase focus:border-green-500/50 outline-none transition-all"
               />
             </div>
+
             {formData.sizes.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Añadidas:</p>
-                {formData.sizes.map((size) => (
-                  <div key={size} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 text-white border border-zinc-700">
-                    <span className="text-[9px] font-black uppercase tracking-widest">{size}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFormData((prev) => ({
-                        ...prev,
-                        sizes: prev.sizes.filter((s) => s !== size)
-                      }))}
-                      className="text-zinc-500 hover:text-red-400"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => setFormData({ ...formData, sizes: [] })} className="text-[9px] font-bold text-zinc-600 hover:text-red-400 transition-colors ml-2">Limpiar todas</button>
+              <div className="space-y-2 border border-zinc-800 rounded-2xl p-4 bg-zinc-950/50">
+                <div className="grid grid-cols-12 gap-2 pb-2 border-b border-zinc-900">
+                  <div className="col-span-3 text-[8px] font-black text-zinc-600 uppercase tracking-widest">Talla</div>
+                  <div className="col-span-3 text-[8px] font-black text-zinc-600 uppercase tracking-widest text-center">Stock</div>
+                  <div className="col-span-4 text-[8px] font-black text-zinc-600 uppercase tracking-widest">SKU Variantes</div>
+                  <div className="col-span-2 text-[8px] font-black text-zinc-600 uppercase tracking-widest text-right">Acción</div>
+                </div>
+                
+                {formData.sizes.map((size) => {
+                  const info = formData.stockBySize[size] || { stock: 0, sku: "", active: true };
+                  return (
+                    <div key={size} className="grid grid-cols-12 gap-2 items-center py-2 border-b border-zinc-900/50 last:border-0">
+                      <div className="col-span-3">
+                        <span className="text-[10px] font-black text-white uppercase">{size}</span>
+                      </div>
+                      <div className="col-span-3 flex justify-center">
+                        <input
+                          type="number"
+                          value={info.stock}
+                          onChange={(e) => updateVariantInfo(size, 'stock', Number(e.target.value))}
+                          className="w-16 bg-zinc-900 border border-zinc-800 p-1.5 rounded-lg text-[10px] text-center text-green-500 font-bold"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <input
+                          type="text"
+                          value={info.sku}
+                          onChange={(e) => updateVariantInfo(size, 'sku', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 p-1.5 rounded-lg text-[9px] uppercase text-zinc-400"
+                          placeholder="SKU-OPC"
+                        />
+                      </div>
+                      <div className="col-span-2 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => removeSizeVariant(size)}
+                          className="p-1.5 text-zinc-600 hover:text-red-500 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

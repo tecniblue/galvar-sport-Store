@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
     "dev": "node scripts/dev.js",
     "dev:client": "vite",
     "dev:server": "node server/v2/server.js",
@@ -13,6 +16,8 @@
     "start": "node server/v2/server.js"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
@@ -28,9 +33,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -44,6 +48,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "postcss": "^8.5.9",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.4"
   }

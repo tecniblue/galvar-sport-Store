@@ -1,6 +1,6 @@
 /* global process */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const children = [];
@@ -28,6 +28,15 @@ const shutdown = (code = 0) => {
   }
   process.exit(code);
 };
+
+const migrate = spawnSync(process.execPath, [resolve("node_modules/prisma/build/index.js"), "migrate", "deploy"], {
+  stdio: "inherit",
+  shell: false,
+});
+
+if (migrate.status !== 0) {
+  process.exit(migrate.status ?? 1);
+}
 
 // Spawn backend server
 spawnNode(["server/v2/server.js"]);

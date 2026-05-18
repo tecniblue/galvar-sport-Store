@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard, ProductDetailsModal } from '../../../../components/product';
 import './FeaturedProducts.css';
-import { AppContext } from '../../../../context/AppContext';
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../../store";
 
 const DEFAULT_PRODUCTS = [
 
@@ -62,7 +62,14 @@ export default function FeaturedProducts({
   highlight = 'PRO',
   subtitle = 'DESTACADOS',
 }) {
-  const app = useContext(AppContext);
+  const app = {
+    products: useCatalogStore(s => s.products),
+    setProducts: useCatalogStore(s => s.setProducts),
+    categories: useCatalogStore(s => s.categories),
+    fighters: useCatalogStore(s => s.fighters),
+    alliances: useCatalogStore(s => s.alliances),
+    cart: useCartStore(s => s.cart)
+  };
   const addToCartFromContext = app?.addToCart;
   const handleAddToCart = onAddToCart ?? ((p, size) => addToCartFromContext?.(toDetailsProduct(p), size));
   const displayProducts = useMemo(() => products?.length ? products : DEFAULT_PRODUCTS, [products]);

@@ -95,7 +95,7 @@ export default function Alianzas({ alliances }) {
   }, [selectedSede]);
 
   return (
-    <div className="bg-black text-white py-24 px-4 md:px-8 font-sans selection:bg-green-500 selection:text-black border-t border-zinc-900 text-left relative overflow-hidden">
+    <div className="bg-black text-white py-16 md:py-20 px-4 md:px-8 font-sans selection:bg-green-500 selection:text-black border-t border-zinc-900 text-left relative overflow-hidden">
       <style>{`
         .font-oswald { font-family: 'Oswald', sans-serif; }
         .font-inter { font-family: 'Inter', sans-serif; }
@@ -107,13 +107,13 @@ export default function Alianzas({ alliances }) {
 
       <div className="max-w-7xl mx-auto">
         {/* Header Seccion */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 border-b border-zinc-900/50 pb-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-5 border-b border-zinc-900/50 pb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="h-[1px] w-6 bg-green-500"></div>
-              <h4 className="font-oswald text-green-500 text-[10px] tracking-[0.4em] uppercase font-bold">Network</h4>
+              <h4 className="font-oswald text-green-500 text-[10px] tracking-[0.32em] uppercase font-bold">Network</h4>
             </div>
-            <h2 className="font-oswald text-4xl md:text-5xl font-bold tracking-tight uppercase italic leading-none">
+            <h2 className="font-oswald text-[clamp(1.9rem,6vw,3rem)] font-bold tracking-tight uppercase italic leading-none">
               Nuestras Alianzas
             </h2>
           </div>
@@ -142,7 +142,7 @@ export default function Alianzas({ alliances }) {
         <div
           ref={scrollRef}
           onScroll={updateCarouselState}
-          className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-8"
+          className="flex gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-6"
         >
           {displayData.map((item, idx) => (
             <div
@@ -151,10 +151,10 @@ export default function Alianzas({ alliances }) {
                 cardRefs.current[idx] = node;
               }}
               onClick={() => setSelectedSede(item)}
-              className="min-w-[280px] md:min-w-[340px] snap-start group cursor-pointer animate-slide-up"
+              className="min-w-[230px] max-w-[230px] sm:min-w-[260px] sm:max-w-[260px] md:min-w-[290px] md:max-w-[290px] snap-start group cursor-pointer animate-slide-up"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
-              <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-4 bg-zinc-900 border border-zinc-800 group-hover:border-green-500/30 transition-all duration-500">
+              <div className="relative aspect-[4/5] max-h-[360px] rounded-xl overflow-hidden mb-3 bg-zinc-900 border border-zinc-800 group-hover:border-green-500/30 transition-all duration-500">
                 <img
                   src={item.imagen}
                   alt={item.nombre}
@@ -166,12 +166,12 @@ export default function Alianzas({ alliances }) {
                     {item.tag}
                   </span>
                 </div>
-                <div className="absolute bottom-6 left-6 right-6">
+                <div className="absolute bottom-5 left-5 right-5">
                   <div className="flex items-center gap-2 mb-2 text-green-500 opacity-80">
                     <MapPin size={10} />
                     <p className="font-oswald text-[9px] tracking-widest uppercase font-semibold">{item.ubicacion}</p>
                   </div>
-                  <h3 className="font-oswald text-2xl font-bold uppercase leading-tight tracking-tighter italic group-hover:text-green-500 transition-colors">
+                  <h3 className="font-oswald text-xl md:text-2xl font-bold uppercase leading-tight tracking-tighter italic group-hover:text-green-500 transition-colors">
                     {item.nombre}
                   </h3>
                 </div>

@@ -1,5 +1,3 @@
-import { getDb } from '../db.js';
-import { randomUUID } from 'node:crypto';
 import { sendOrderEmails, sendOrderStatusEmail } from '../../services/email/email.service.js';
 import { 
   fetchAllOrders, 
@@ -8,15 +6,8 @@ import {
   updateOrderStatusService, 
   deleteOrderService 
 } from '../services/orders.service.js';
+import { prisma } from '../prisma.js';
 
-const parseJson = (value, fallback) => {
-  try {
-    const parsed = JSON.parse(value);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 export const getOrders = async (req, res) => {
   try {
@@ -51,11 +42,18 @@ export const getOrderByClient = async (req, res) => {
 
 export const createOrder = async (req, res) => {
   try {
-    const { order, duplicate } = await insertSecureOrderService(req.body, req.body.paymentMethod || 'whatsapp');
-    const fullOrder = { ...order, items: parseJson(order.items, []) };
+    const { order, duplicate } = await insertSecureOrderService(req.body, 'whatsapp');
+    const fullOrder = { ...order };
 
-    if (!duplicate && fullOrder.payment_method === 'whatsapp') {
-      await sendOrderEmails(fullOrder);
+    if (!duplicate && fullOrder.payment_method === 'whatsapp' && !fullOrder.purchase_email_sent_at) {
+      const emailResult = await sendOrderEmails(fullOrder);
+      if (emailResult.ok) {
+        fullOrder.purchase_email_sent_at = new Date();
+        await prisma.orders.update({
+          where: { order_number: fullOrder.order_number },
+          data: { purchase_email_sent_at: fullOrder.purchase_email_sent_at }
+        });
+      }
     }
 
     res.status(201).json(fullOrder);
@@ -76,9 +74,18 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ error: "Orden no encontrada." });
     }
 
-    const fullOrder = { ...updatedOrder, items: parseJson(updatedOrder.items, []) };
+    const fullOrder = { ...updatedOrder };
     
-    const emailSent = await sendOrderStatusEmail(fullOrder);
+    let emailSent = false;
+    if (!fullOrder.status_email_sent_at) {
+      emailSent = await sendOrderStatusEmail(fullOrder);
+      if (emailSent) {
+        await prisma.orders.update({
+          where: { order_number: fullOrder.order_number },
+          data: { status_email_sent_at: new Date() }
+        });
+      }
+    }
     
     res.json({ ...fullOrder, statusEmailSent: emailSent });
   } catch (error) {

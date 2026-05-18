@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { X, Upload, Trash2 } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import { createFighter, updateFighter } from "../../../services/api";
 
 export default function FighterModal({ isOpen, onClose, editingItem }) {
-  const { setFighters, showNotification } = useContext(AppContext);
+  const setFighters = useCatalogStore(state => state.setFighters);
+  const showNotification = useUIStore(state => state.showNotification);
   const isEditing = !!editingItem;
   const fileInputRef = useRef(null);
 
@@ -34,15 +36,31 @@ export default function FighterModal({ isOpen, onClose, editingItem }) {
     e.target.value = "";
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return showNotification("Nombre requerido");
 
-    setFighters(prev => {
-      if (isEditing) return prev.map(p => p.id === editingItem.id ? { ...p, ...formData } : p);
-      return [...prev, { ...formData, id: Date.now().toString() }];
-    });
-    onClose();
+    try {
+      const fighterToSave = {
+        ...formData,
+        id: isEditing ? editingItem.id : (formData.id || Date.now().toString())
+      };
+
+      if (isEditing) {
+        await updateFighter(editingItem.id, fighterToSave);
+      } else {
+        await createFighter(fighterToSave);
+      }
+
+      setFighters(prev => {
+        if (isEditing) return prev.map(p => p.id === editingItem.id ? fighterToSave : p);
+        return [...prev, fighterToSave];
+      });
+      onClose();
+    } catch (error) {
+      console.error("Error saving fighter:", error);
+      showNotification("Error al guardar el guerrero");
+    }
   };
 
   return (

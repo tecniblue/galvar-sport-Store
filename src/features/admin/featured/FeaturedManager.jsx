@@ -3,7 +3,8 @@ import {
   Star, StarOff, ArrowUp, ArrowDown,
   Sparkles, Info, GripVertical, Save, CheckCircle2,
 } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import { updateProduct } from "../../../services/api";
 
 const fmt = (v) => {
   const n = Number(v);
@@ -32,7 +33,8 @@ function rebuildFeaturedOrders(products, orderedFeaturedIds) {
 }
 
 export default function FeaturedManager({ embedded = false }) {
-  const { products, setProducts } = useContext(AppContext);
+  const products = useCatalogStore(state => state.products);
+  const setProducts = useCatalogStore(state => state.setProducts);
 
   // Local draft order — array of product IDs in current display order
   const [localOrder, setLocalOrder] = useState(null); // null = in sync with context
@@ -62,42 +64,49 @@ export default function FeaturedManager({ embedded = false }) {
   const atLimit = featured.length >= MAX_FEATURED;
 
   // Toggle featured — applies immediately to context (no draft needed)
-  const toggle = (id) => {
-    // Clear local draft when toggling — let context drive
-    setLocalOrder(null);
-    setSaved(false);
-    setProducts((prev) => {
-      const currentFeatured = [...prev]
-        .filter((p) => p.isFeatured)
-        .sort((a, b) => (a.featuredOrder ?? 9999) - (b.featuredOrder ?? 9999));
+  const toggle = async (id) => {
+    const currentFeatured = [...products]
+      .filter((p) => p.isFeatured)
+      .sort((a, b) => (a.featuredOrder ?? 9999) - (b.featuredOrder ?? 9999));
 
-      const isCurrentlyFeatured = prev.find((p) => p.id === id)?.isFeatured;
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const isCurrentlyFeatured = product.isFeatured;
 
-      let newFeaturedIds;
-      if (isCurrentlyFeatured) {
-        newFeaturedIds = currentFeatured.filter((p) => p.id !== id).map((p) => p.id);
-      } else {
-        newFeaturedIds = [...currentFeatured.map((p) => p.id), id];
-      }
+    let newFeaturedIds;
+    if (isCurrentlyFeatured) {
+      newFeaturedIds = currentFeatured.filter((p) => p.id !== id).map((p) => p.id);
+    } else {
+      newFeaturedIds = [...currentFeatured.map((p) => p.id), id];
+    }
+    
+    // Calculate new properties for the toggled product
+    const next = !product.isFeatured;
+    const updatedProduct = {
+      ...product,
+      isFeatured: next,
+      featuredOrder: next ? newFeaturedIds.length - 1 : null,
+      badge: next
+        ? (product.badge || "TOP")
+        : String(product.badge ?? "").trim().toUpperCase() === "TOP"
+        ? ""
+        : product.badge ?? "",
+    };
 
-      return prev.map((p) => {
-        if (p.id === id) {
-          const next = !p.isFeatured;
-          return {
-            ...p,
-            isFeatured: next,
-            featuredOrder: next ? newFeaturedIds.length - 1 : Infinity,
-            badge: next
-              ? (p.badge || "TOP")
-              : String(p.badge ?? "").trim().toUpperCase() === "TOP"
-              ? ""
-              : p.badge ?? "",
-          };
-        }
-        const idx = newFeaturedIds.indexOf(p.id);
-        return idx >= 0 ? { ...p, featuredOrder: idx } : { ...p, featuredOrder: Infinity };
+    try {
+      await updateProduct(id, updatedProduct);
+      
+      // Update local state
+      setLocalOrder(null);
+      setSaved(false);
+      setProducts((prev) => {
+        return prev.map((p) => {
+          if (p.id === id) return updatedProduct;
+          const idx = newFeaturedIds.indexOf(p.id);
+          return idx >= 0 ? { ...p, featuredOrder: idx } : { ...p, featuredOrder: null };
+        });
       });
-    });
+    } catch(e) { console.error(e); alert("Error"); }
   };
 
   const moveFeatured = (id, dir) => {
@@ -116,14 +125,27 @@ export default function FeaturedManager({ embedded = false }) {
   };
 
   // Save positions — commits local draft to context (persists to DB)
-  const savePositions = useCallback(() => {
+  const savePositions = useCallback(async () => {
     if (!localOrder) return;
-    setProducts((prev) => rebuildFeaturedOrders(prev, localOrder));
-    setLocalOrder(null);
-    setSaved(true);
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => setSaved(false), 2500);
-  }, [localOrder, setProducts]);
+    const nextProducts = rebuildFeaturedOrders(products, localOrder);
+    
+    // We only need to update the products whose featuredOrder has changed.
+    const changedProducts = nextProducts.filter(np => {
+      const orig = products.find(op => op.id === np.id);
+      return orig && orig.featuredOrder !== np.featuredOrder;
+    });
+
+    try {
+      // Execute in parallel
+      await Promise.all(changedProducts.map(p => updateProduct(p.id, p)));
+      
+      setProducts(nextProducts);
+      setLocalOrder(null);
+      setSaved(true);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => setSaved(false), 2500);
+    } catch(e) { console.error(e); alert("Error guardando orden"); }
+  }, [localOrder, setProducts, products]);
 
   // Drag-and-drop — only updates local draft
   const dragId = useRef(null);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getBootstrap, updateState, updateCart, updateCheckoutPrefs } from '../controllers/system.controller.js';
-import { authMiddleware, requireAdmin } from '../middlewares/auth.middleware.js';
+import { authMiddleware, requireAdmin, requireCsrf } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -10,6 +10,6 @@ router.put('/cart', authMiddleware, updateCart);
 router.put('/checkout-prefs', authMiddleware, updateCheckoutPrefs);
 
 // Protegidas por Admin
-router.put('/state/:key', authMiddleware, requireAdmin, updateState);
+router.put('/state/:key', authMiddleware, requireAdmin, requireCsrf, updateState);
 
 export default router;

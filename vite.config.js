@@ -8,6 +8,7 @@ export default defineConfig({
     allowedHosts: ["rockfish-desolate-concierge.ngrok-free.dev"],
     proxy: {
       "/api": "http://localhost:3001",
+      "/uploads": "http://localhost:3001",
     },
   },
 });

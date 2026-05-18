@@ -1,9 +1,12 @@
+/* global process */
+
 import pg from 'pg';
-import { resolve } from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const { Pool } = pg;
 
 let dbInstance = null;
+const asyncLocalStorage = new AsyncLocalStorage();
 
 /**
  * Wrapper para PostgreSQL que imita la API básica de sqlite (all, get, run, exec)
@@ -20,18 +23,33 @@ class PostgresWrapper {
     return sql.replace(/\?/g, () => `$${index++}`);
   }
 
+  // Obtiene el cliente transaccional o usa el pool directamente
+  get currentClient() {
+    return asyncLocalStorage.getStore() || this.pool;
+  }
+
   async all(sql, params = []) {
-    const res = await this.pool.query(this.translateQuery(sql), params);
+    const res = await this.currentClient.query(this.translateQuery(sql), params);
     return res.rows;
   }
 
   async get(sql, params = []) {
-    const res = await this.pool.query(this.translateQuery(sql), params);
+    const res = await this.currentClient.query(this.translateQuery(sql), params);
     return res.rows[0];
   }
 
   async run(sql, params = []) {
-    const res = await this.pool.query(this.translateQuery(sql), params);
+    const queryStr = sql.trim().toUpperCase();
+    
+    // Ignoramos BEGIN/COMMIT/ROLLBACK si se llaman mediante run() 
+    // porque necesitamos usar withTransaction para que funcione correctamente
+    if (queryStr === 'BEGIN' || queryStr === 'BEGIN TRANSACTION' || 
+        queryStr === 'COMMIT' || queryStr === 'ROLLBACK') {
+      console.warn(`[DB] Ignorando instrucción transaccional directa: ${queryStr}. Las transacciones directas fallan con connection pools.`);
+      return { changes: 0, lastID: null };
+    }
+
+    const res = await this.currentClient.query(this.translateQuery(sql), params);
     return {
       changes: res.rowCount,
       lastID: res.rows[0]?.id || null
@@ -39,7 +57,23 @@ class PostgresWrapper {
   }
 
   async exec(sql) {
-    await this.pool.query(sql);
+    await this.currentClient.query(sql);
+  }
+  
+  // Nuevo método para ejecutar funciones dentro de una transacción segura
+  async withTransaction(callback) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await asyncLocalStorage.run(client, () => callback(this));
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -190,13 +224,18 @@ async function initDbSchema(db) {
     const adminCount = parseInt(adminCountRow.count);
     if (adminCount === 0) {
       console.log("No admins found, provisioning first admin...");
+      if (ADMIN_PASSWORD.length < 12) {
+        const message = "ADMIN_PASSWORD debe tener al menos 12 caracteres para producción.";
+        if (process.env.NODE_ENV === 'production') throw new Error(message);
+        console.warn(message);
+      }
       const bcrypt = await import('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
+      const salt = await bcrypt.genSalt(Number(process.env.BCRYPT_ROUNDS || 12));
       const hash = await bcrypt.hash(ADMIN_PASSWORD, salt);
       const { randomUUID } = await import('node:crypto');
       await db.run(
         "INSERT INTO admins (id, email, password_hash) VALUES (?, ?, ?)",
-        [randomUUID(), ADMIN_EMAIL, hash]
+        [randomUUID(), ADMIN_EMAIL.trim().toLowerCase(), hash]
       );
       console.log("First admin provisioned successfully.");
     }

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState, lazy, Suspense } from 
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { GalvarHeroLogo } from "../components/brand";
-import { AppContext } from "../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../store";
 
 const FightersCarousel = lazy(() => import("../features/home/components/FightersCarousel/FightersCarousel"));
 const HowToBuySection = lazy(() => import("../features/home/components/HowToBuySection/HowToBuySection"));
@@ -11,6 +11,7 @@ const TechEquipment = lazy(() => import("../features/home/components/TechEquipme
 const Alianzas = lazy(() => import("../features/home/components/Alianzas"));
 const Testimonios = lazy(() => import("../features/home/components/Testimonios"));
 const WeeklyOffers = lazy(() => import("../features/home/components/WeeklyOffers/WeeklyOffers"));
+const MissionVision = lazy(() => import("../features/home/components/MissionVision"));
 
 const TAGLINE_LEFT = "NO ES ENTRENAR";
 const TAGLINE_RIGHT = "ES EVOLUCIONAR";
@@ -238,7 +239,9 @@ const HeroSection = React.memo(() => {
 });
 
 export default function HomePage() {
-  const { products, fighters, alliances } = useContext(AppContext);
+  const products = useCatalogStore(state => state.products);
+  const fighters = useCatalogStore(state => state.fighters);
+  const alliances = useCatalogStore(state => state.alliances);
 
   const featuredProducts = useMemo(
     () =>
@@ -275,13 +278,14 @@ export default function HomePage() {
         {/* ROSTER DE LUCHADORES */}
         <FightersCarousel fighters={fighters} />
 
-
-
         {/* ALIANZAS */}
         <Alianzas alliances={alliances} />
 
         {/* TESTIMONIOS */}
         <Testimonios />
+
+        {/* MISIÓN Y VISIÓN */}
+        <MissionVision />
       </Suspense>
 
       {/* UBICACIÓN */}
@@ -296,22 +300,29 @@ export default function HomePage() {
                 <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-white">
                   Nuestra <span className="text-green-500">Casa</span>
                 </h2>
-                <p className="text-zinc-300 font-bold uppercase tracking-widest text-sm italic">
+                <p className="text-zinc-300 font-bold uppercase tracking-widest text-sm italic mb-2">
                   Clodomiro Rozas 965, Antofagasta
+                </p>
+                <p className="text-green-500 font-bold text-xs uppercase tracking-wider italic">
+                  * Se debe coordinar la visita para poder dar una mejor asesoría
                 </p>
               </div>
               <div className="space-y-4 text-xs uppercase font-bold tracking-widest text-zinc-400">
-                <div className="flex justify-between border-b border-zinc-900 pb-4">
-                  <span>Lun - Jue:</span>{" "}
-                  <span className="text-white">11:00-15:00 | 16:30-19:30</span>
+                <div className="flex justify-between border-b border-zinc-900 pb-4 gap-4">
+                  <span>Lunes:</span>{" "}
+                  <span className="text-white text-right">11:00 - 19:30</span>
                 </div>
-                <div className="flex justify-between border-b border-zinc-900 pb-4">
-                  <span>Viernes:</span>{" "}
-                  <span className="text-white">11:00-15:00</span>
+                <div className="flex justify-between border-b border-zinc-900 pb-4 gap-4">
+                  <span>Martes a Viernes:</span>{" "}
+                  <span className="text-white text-right">11:00 - 15:30 | 16:30 - 19:30</span>
                 </div>
-                <div className="flex justify-between pt-2">
+                <div className="flex justify-between border-b border-zinc-900 pb-4 gap-4">
                   <span>Sábado:</span>{" "}
-                  <span className="text-green-500 font-black">11:00-16:00</span>
+                  <span className="text-white text-right">11:00 - 16:00</span>
+                </div>
+                <div className="flex justify-between pt-2 gap-4">
+                  <span>Domingo:</span>{" "}
+                  <span className="text-green-500 font-black text-right">SOLO CITAS</span>
                 </div>
               </div>
               <a
@@ -323,10 +334,28 @@ export default function HomePage() {
                 GOOGLE MAPS
               </a>
             </div>
-            <div className="bg-zinc-900 flex flex-col items-center justify-center p-20 relative overflow-hidden text-center">
-              <MapPin size={100} className="text-green-500 animate-bounce" />
-              <div className="absolute bottom-10 text-[8rem] md:text-[10rem] font-black italic text-zinc-950/20 select-none">
-                ANFA
+
+            <div className="bg-zinc-900 flex flex-col items-center justify-center min-h-[400px] md:min-h-[100%] relative overflow-hidden text-center">
+              {/* Google Maps Iframe en el fondo */}
+              <iframe
+                title="Mapa de Ubicación Galvar Sport"
+                src="https://maps.google.com/maps?width=100%25&height=600&hl=es&q=Clodomiro%20Rozas%20965,%20Antofagasta,%20Chile+(Galvar%20Sport)&t=&z=17&ie=UTF8&iwloc=B&output=embed"
+                className="absolute inset-0 w-full h-full border-0 z-0"
+                style={{ filter: "invert(90%) hue-rotate(180deg) contrast(115%)" }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+
+              {/* Capa superpuesta semitransparente para mantener la estética oscura */}
+              <div className="absolute inset-0 bg-black/40 pointer-events-none z-10" />
+
+              {/* Elementos decorativos encima del mapa (pointer-events-none para permitir interactuar con el mapa) */}
+              <div className="relative z-20 pointer-events-none flex flex-col items-center justify-center p-20 w-full h-full">
+                <MapPin size={80} className="text-green-500 animate-bounce drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
+                <div className="absolute bottom-6 text-[6rem] md:text-[8rem] font-black italic text-white/10 select-none tracking-widest">
+                  ANFA
+                </div>
               </div>
             </div>
           </div>

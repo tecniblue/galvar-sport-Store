@@ -1,16 +1,27 @@
 import React, { useContext, useState } from "react";
 import { Users, Plus, Trash2, Edit } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import AllianceModal from "./AllianceModal";
 
+import { deleteAlliance } from "../../../services/api";
+
 export default function Alliances() {
-  const { alliances, setAlliances } = useContext(AppContext);
+  const alliances = useCatalogStore(state => state.alliances);
+  const setAlliances = useCatalogStore(state => state.setAlliances);
+  const showNotification = useUIStore(state => state.showNotification);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlliance, setEditingAlliance] = useState(null);
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("¿Eliminar alianza?")) {
-      setAlliances(prev => prev.filter(a => a.id !== id));
+      try {
+        await deleteAlliance(id);
+        setAlliances(prev => prev.filter(a => a.id !== id));
+        showNotification("Alianza eliminada");
+      } catch (error) {
+        console.error("Error deleting alliance:", error);
+        showNotification("Error al eliminar la alianza");
+      }
     }
   };
 

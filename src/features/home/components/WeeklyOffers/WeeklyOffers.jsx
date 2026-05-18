@@ -1,8 +1,34 @@
-import React, { useContext, useMemo, useState, useEffect } from "react";
-import { Zap, Timer, ChevronRight, ShoppingCart } from "lucide-react";
-import { AppContext } from "../../../../context/AppContext";
+import React, { useMemo, useState, useEffect } from "react";
+import { Zap, Timer, ChevronRight } from "lucide-react";
+import { useCatalogStore, useCartStore } from "../../../../store";
 import { ProductCard, ProductDetailsModal } from "../../../../components/product";
 import "./WeeklyOffers.css";
+
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const parseOfferDate = (value, boundary = "start") => {
+  if (!value) return null;
+
+  if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return boundary === "end"
+      ? new Date(year, month - 1, day, 23, 59, 59, 999)
+      : new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isOfferActiveNow = (offer, nowMs) => {
+  const start = parseOfferDate(offer.offerStartDate, "start");
+  const end = parseOfferDate(offer.offerEndDate, "end");
+
+  if (start && start.getTime() > nowMs) return false;
+  if (end && end.getTime() < nowMs) return false;
+
+  return true;
+};
 
 const Countdown = ({ endDate }) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -12,12 +38,15 @@ const Countdown = ({ endDate }) => {
   useEffect(() => {
     if (!endDate) return;
 
-    const timer = setInterval(() => {
+    const targetDate = parseOfferDate(endDate, "end");
+    if (!targetDate) return;
+
+    const updateCountdown = () => {
       const now = new Date().getTime();
-      const distance = new Date(endDate).getTime() - now;
+      const distance = targetDate.getTime() - now;
 
       if (distance < 0) {
-        clearInterval(timer);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
 
@@ -27,7 +56,10 @@ const Countdown = ({ endDate }) => {
         minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
         seconds: Math.floor((distance % (1000 * 60)) / 1000)
       });
-    }, 1000);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
   }, [endDate]);
@@ -63,22 +95,31 @@ const Countdown = ({ endDate }) => {
 };
 
 export default function WeeklyOffers() {
-  const { products, addToCart } = useContext(AppContext);
+  const products = useCatalogStore(state => state.products);
+  const addToCart = useCartStore(state => state.addToCart);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const offers = useMemo(() => {
     return products
-      .filter(p => p.isWeeklyOffer && p.active)
+      .filter(p => p.isWeeklyOffer && p.isOfferActive && p.active && isOfferActiveNow(p, nowMs))
       .sort((a, b) => (a.offerOrder || 0) - (b.offerOrder || 0));
-  }, [products]);
+  }, [products, nowMs]);
 
   // Find the earliest end date among active offers
   const earliestEndDate = useMemo(() => {
     const dates = offers
       .map(o => o.offerEndDate)
       .filter(Boolean)
-      .sort();
-    return dates[0] || null;
+      .map(date => parseOfferDate(date, "end"))
+      .filter(Boolean)
+      .sort((a, b) => a.getTime() - b.getTime());
+    return dates[0]?.toISOString() || null;
   }, [offers]);
 
   if (offers.length === 0) return null;

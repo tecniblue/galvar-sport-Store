@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { X, Upload, Trash2 } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import { createAlliance, updateAlliance } from "../../../services/api";
 
 export default function AllianceModal({ isOpen, onClose, editingItem }) {
-  const { setAlliances, showNotification } = useContext(AppContext);
+  const setAlliances = useCatalogStore(state => state.setAlliances);
+  const showNotification = useUIStore(state => state.showNotification);
   const isEditing = !!editingItem;
   const fileInputRef = useRef(null);
 
@@ -34,15 +36,31 @@ export default function AllianceModal({ isOpen, onClose, editingItem }) {
     e.target.value = "";
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nombre.trim()) return showNotification("Nombre requerido");
 
-    setAlliances(prev => {
-      if (isEditing) return prev.map(p => p.id === editingItem.id ? { ...p, ...formData } : p);
-      return [...prev, { ...formData, id: Date.now().toString() }];
-    });
-    onClose();
+    try {
+      const allianceToSave = {
+        ...formData,
+        id: isEditing ? editingItem.id : (formData.id || Date.now().toString())
+      };
+
+      if (isEditing) {
+        await updateAlliance(editingItem.id, allianceToSave);
+      } else {
+        await createAlliance(allianceToSave);
+      }
+
+      setAlliances(prev => {
+        if (isEditing) return prev.map(p => p.id === editingItem.id ? allianceToSave : p);
+        return [...prev, allianceToSave];
+      });
+      onClose();
+    } catch (error) {
+      console.error("Error saving alliance:", error);
+      showNotification("Error al guardar la alianza");
+    }
   };
 
   return (

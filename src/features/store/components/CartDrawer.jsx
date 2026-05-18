@@ -1,11 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
-import { AppContext } from "../../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 
 export default function CartDrawer({ isOpen, onClose }) {
   const navigate = useNavigate();
-  const { cart, setCart } = useContext(AppContext);
+  const cart = useCartStore(state => state.cart);
+  const setCart = useCartStore(state => state.setCart);
 
   const drawerRef = useRef(null);
   const closeBtnRef = useRef(null);
@@ -37,7 +38,18 @@ export default function CartDrawer({ isOpen, onClose }) {
           .map((item) => {
             if (item.id !== id || item.size !== size) return item;
             const currentQty = Number(item.qty) || 0;
-            return { ...item, qty: Math.max(0, currentQty + delta) };
+            let maxStock = Number(item.stock) || 0;
+            if (size) {
+              const sInfo = (item.stockBySize || item.stock_by_size || {})[size];
+              if (sInfo) {
+                maxStock = Number(sInfo.stock) || 0;
+              }
+            }
+            const nextQty = Math.max(0, Math.min(currentQty + delta, maxStock));
+            if (currentQty + delta > maxStock) {
+              useUIStore.getState().showNotification(`Solo quedan ${maxStock} unidades disponibles`);
+            }
+            return { ...item, qty: nextQty };
           })
           .filter((item) => (Number(item.qty) || 0) > 0),
       );

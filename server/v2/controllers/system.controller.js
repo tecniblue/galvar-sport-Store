@@ -1,98 +1,124 @@
-import { getDb } from '../db.js';
+/* global process */
+
+import { prisma } from '../prisma.js';
 import { saveBase64Image } from '../utils/file.utils.js';
 import { sanitizeString } from '../utils/sanitize.js';
+import {
+  buildStockBySizeFromVariants,
+  syncProductVariants,
+} from '../services/inventory.service.js';
 
-const parseJson = (value, fallback) => {
-  try { return JSON.parse(value) ?? fallback; } catch { return fallback; }
-};
+// parseJson removed as Prisma handles Json type natively
 
 const normalizeString = (value) => sanitizeString(value);
 const asId = (value, fallback) => sanitizeString(value || fallback);
-
-const normalizeProduct = (p) => ({
-  id: asId(p?.id, p?.sku ?? p?.name ?? Date.now()),
-  sku: normalizeString(p?.sku),
-  label: normalizeString(p?.label).slice(0, 3),
-  cat: normalizeString(p?.cat ?? p?.category ?? "Accesorios") || "Accesorios",
-  subcat: normalizeString(p?.subcat ?? ""),
-  active: p?.active === undefined ? true : Boolean(p?.active),
-  isFeatured: Boolean(p?.isFeatured || normalizeString(p?.badge).toUpperCase() === "TOP"),
-  price: Number(p?.price) || 0,
-  stock: Math.max(0, Number(p?.stock) || 0),
-  variant: normalizeString(p?.variant ?? p?.specialty),
-  name: normalizeString(p?.name),
-  desc: normalizeString(p?.desc ?? p?.description),
-  badge: normalizeString(p?.badge),
-  sizes: Array.isArray(p?.sizes) ? p.sizes.map(s => String(s).trim()).filter(Boolean) : [],
-  images: Array.isArray(p?.images) ? p.images.filter(Boolean) : [],
-  featuredOrder: p?.featuredOrder === null || p?.featuredOrder === undefined ? null : Number(p.featuredOrder),
-  // Weekly Offer fields
-  isWeeklyOffer: Boolean(p?.isWeeklyOffer),
-  offerPrice: p?.offerPrice === null || p?.offerPrice === undefined ? null : Number(p?.offerPrice),
-  offerLabel: normalizeString(p?.offerLabel),
-  offerStartDate: p?.offerStartDate ?? null,
-  offerEndDate: p?.offerEndDate ?? null,
-  offerOrder: Number(p?.offerOrder) || 0,
-});
-
-const readProducts = async (db) => {
-  const rows = await db.all("SELECT * FROM products ORDER BY id");
-  const imgs = await db.all("SELECT * FROM product_images ORDER BY sort_order");
-  const imgMap = {};
-  for (const row of imgs) {
-    if (!imgMap[row.product_id]) imgMap[row.product_id] = [];
-    imgMap[row.product_id].push(row.url);
+const normalizeStringList = (value) => (
+  Array.isArray(value) ? value.map((item) => normalizeString(item)).filter(Boolean).slice(0, 50) : []
+);
+const normalizeStockBySize = (raw) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const result = {};
+  for (const [size, info] of Object.entries(raw)) {
+    const key = normalizeString(size);
+    if (!key) continue;
+    result[key] = {
+      stock: Math.max(0, Number(info?.stock) || 0),
+      sku: normalizeString(info?.sku ?? ''),
+      active: info?.active === undefined ? true : Boolean(info.active),
+    };
   }
-  return rows.map((r) => ({
-    id: r.id, sku: r.sku, label: r.label, cat: r.cat, subcat: r.subcat,
-    active: r.active === 1, isFeatured: r.is_featured === 1,
-    price: r.price, stock: r.stock, variant: r.variant,
-    name: r.name, desc: r.desc, badge: r.badge,
-    sizes: parseJson(r.sizes, []),
-    images: imgMap[r.id] || [],
-    featuredOrder: r.featured_order,
-    isWeeklyOffer: r.is_weekly_offer === 1,
-    offerPrice: r.offer_price,
-    offerLabel: r.offer_label,
-    offerStartDate: r.offer_start_date,
-    offerEndDate: r.offer_end_date,
-    offerOrder: r.offer_order,
-  }));
+  return result;
+};
+const normalizeUrl = (value) => {
+  const text = normalizeString(value);
+  if (!text) return "";
+  if (text.startsWith('/uploads/')) return text;
+  try {
+    const url = new URL(text);
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
 };
 
-const readCategories = async (db) => {
-  const rows = await db.all("SELECT * FROM categories ORDER BY sort_order");
-  return [
-    { name: "Todos", subcategories: [] },
-    ...rows.map(r => ({
-      name: r.name,
-      subcategories: parseJson(r.subcategories, [])
-    }))
-  ];
+const normalizeProduct = (p) => {
+  const stockBySize = normalizeStockBySize(p?.stockBySize ?? p?.stock_by_size);
+  const sizes = normalizeStringList([...new Set([
+    ...(Array.isArray(p?.sizes) ? p.sizes : []),
+    ...Object.keys(stockBySize),
+  ])]);
+
+  return {
+    id: asId(p?.id, p?.sku ?? p?.name ?? Date.now()),
+    sku: normalizeString(p?.sku),
+    label: normalizeString(p?.label).slice(0, 3),
+    cat: normalizeString(p?.cat ?? p?.category ?? "Accesorios") || "Accesorios",
+    subcat: normalizeString(p?.subcat ?? ""),
+    active: p?.active === undefined ? true : Boolean(p?.active),
+    isFeatured: Boolean(p?.isFeatured ?? p?.is_featured ?? (normalizeString(p?.badge).toUpperCase() === "TOP")),
+    price: Number(p?.price) || 0,
+    stock: Math.max(0, Number(p?.stock) || 0),
+    variant: normalizeString(p?.variant ?? p?.specialty),
+    name: normalizeString(p?.name),
+    desc: normalizeString(p?.desc ?? p?.description),
+    badge: normalizeString(p?.badge),
+    sizes,
+    stockBySize,
+    images: Array.isArray(p?.images) ? p.images.filter(Boolean) : [],
+    featuredOrder: p?.featuredOrder !== undefined ? (p.featuredOrder === null ? null : Number(p.featuredOrder)) : (p?.featured_order !== undefined ? (p.featured_order === null ? null : Number(p.featured_order)) : null),
+    isWeeklyOffer: Boolean(p?.isWeeklyOffer ?? p?.is_weekly_offer),
+    offerPrice: p?.offerPrice !== undefined ? (p.offerPrice === null ? null : Number(p.offerPrice)) : (p?.offer_price !== undefined ? (p.offer_price === null ? null : Number(p.offer_price)) : null),
+    offerLabel: normalizeString(p?.offerLabel ?? p?.offer_label),
+    offerStartDate: p?.offerStartDate ?? p?.offer_start_date ?? null,
+    offerEndDate: p?.offerEndDate ?? p?.offer_end_date ?? null,
+    offerOrder: Number(p?.offerOrder ?? p?.offer_order) || 0,
+  };
 };
 
-const readAlliances = async (db) => {
-  const rows = await db.all("SELECT * FROM alliances");
-  return rows;
-};
-
-const readFighters = async (db) => {
-  const rows = await db.all("SELECT * FROM fighters");
-  return rows;
-};
+// Helper methods removed as Prisma handles relations and queries natively
 
 export const getBootstrap = async (req, res) => {
   try {
-    const db = await getDb();
     const session = req.session || { cart: '[]', checkout_prefs: '{}', is_admin: 0 };
     
+    const [products, categories, alliances, fighters] = await Promise.all([
+      prisma.products.findMany({
+        include: {
+          product_images: { orderBy: { sort_order: 'asc' } },
+          product_variants: { orderBy: { size: 'asc' } },
+        },
+        orderBy: { id: 'asc' }
+      }),
+      prisma.categories.findMany({ orderBy: { sort_order: 'asc' } }),
+      prisma.alliances.findMany(),
+      prisma.fighters.findMany()
+    ]);
+
     res.json({
-      products: await readProducts(db),
-      categories: await readCategories(db),
-      alliances: await readAlliances(db),
-      fighters: await readFighters(db),
-      cart: parseJson(session.cart, []),
-      checkoutPrefs: parseJson(session.checkout_prefs, {}),
+      products: products.map(p => ({
+        ...p,
+        active: p.active === 1,
+        isFeatured: p.is_featured === 1,
+        images: p.product_images.map(img => img.url),
+        stockBySize: p.product_variants.length
+          ? buildStockBySizeFromVariants(p.product_variants)
+          : p.stock_by_size,
+        isWeeklyOffer: p.is_weekly_offer === 1,
+        offerPrice: p.offer_price,
+        offerLabel: p.offer_label,
+        offerStartDate: p.offer_start_date,
+        offerEndDate: p.offer_end_date,
+        offerOrder: p.offer_order,
+        featuredOrder: p.featured_order,
+      })),
+      categories: [
+        { name: "Todos", subcategories: [] },
+        ...categories
+      ],
+      alliances,
+      fighters,
+      cart: session.cart,
+      checkoutPrefs: session.checkout_prefs,
       isAdmin: Boolean(session.is_admin),
     });
   } catch (error) {
@@ -103,76 +129,162 @@ export const getBootstrap = async (req, res) => {
 
 export const updateState = async (req, res) => {
   try {
-    const db = await getDb();
     const { key } = req.params;
-    // CAPTURA DE IMÁGENES ANTES DE ACTUALIZAR (Para limpieza de disco)
-    const oldImages = (await db.all("SELECT url FROM product_images UNION SELECT image as url FROM fighters UNION SELECT imagen as url FROM alliances"))
-      .map(r => r.url)
-      .filter(u => u && u.startsWith('/uploads/'));
+    const { value } = req.body;
 
-    await db.run("BEGIN TRANSACTION");
-    if (key === "products") {
-      await db.run("DELETE FROM products");
-      await db.run("DELETE FROM product_images");
-      const arr = Array.isArray(value) ? value : [];
-      for (const p of arr) {
-        const np = normalizeProduct(p);
-        await db.run(`INSERT INTO products (id, sku, label, cat, subcat, active, is_featured, price, stock, variant, name, desc, badge, sizes, is_weekly_offer, offer_price, offer_label, offer_start_date, offer_end_date, offer_order, featured_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-        [
-          np.id, np.sku, np.label, np.cat, np.subcat, np.active ? 1 : 0, np.isFeatured ? 1 : 0, 
-          np.price, np.stock, np.variant, np.name, np.desc, np.badge, JSON.stringify(np.sizes),
-          np.isWeeklyOffer ? 1 : 0, np.offerPrice, np.offerLabel, np.offerStartDate, np.offerEndDate, np.offerOrder, np.featuredOrder
-        ]);
-        for (let i = 0; i < np.images.length; i++) {
-          const imageUrl = saveBase64Image(np.images[i], 'products');
-          await db.run("INSERT INTO product_images (product_id, sort_order, url) VALUES (?, ?, ?)", [np.id, i, imageUrl]);
-        }
-      }
-    } else if (key === "categories") {
-      await db.run("DELETE FROM categories");
-      const arr = Array.isArray(value) ? value : [];
-      const seen = new Set();
-      let sort = 0;
-      for (const cat of arr) {
-        if (!cat) continue;
-        const name = typeof cat === 'string' ? cat : cat.name;
-        if (!name || name === "Todos") continue;
-        if (seen.has(name)) continue; 
-        seen.add(name);
-        const subcats = Array.isArray(cat.subcategories) ? cat.subcategories : [];
-        await db.run("INSERT INTO categories (name, sort_order, subcategories) VALUES (?, ?, ?)", [name, sort++, JSON.stringify(subcats)]);
-      }
-    } else if (key === "fighters") {
-      await db.run("DELETE FROM fighters");
-      const arr = Array.isArray(value) ? value : [];
-      for (const f of arr) {
-        const imageUrl = saveBase64Image(f.image, 'fighters');
-        await db.run(
-          "INSERT INTO fighters (id, name, title, specialty, weight, level, record, handle, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [f.id, f.name, f.title, f.specialty, f.weight, f.level, f.record, f.handle, imageUrl]
-        );
-      }
-    } else if (key === "alliances") {
-      await db.run("DELETE FROM alliances");
-      const arr = Array.isArray(value) ? value : [];
-      for (const a of arr) {
-        const imageUrl = saveBase64Image(a.imagen, 'alliances');
-        await db.run(
-          "INSERT INTO alliances (id, nombre, tag, ubicacion, direccion, email, telefono, horario, dias, status, descripcion, imagen, instagram, website) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [a.id, a.nombre, a.tag, a.ubicacion, a.direccion, a.email, a.telefono, a.horario, a.dias, a.status, a.descripcion, imageUrl, a.instagram, a.website]
-        );
-      }
-    } else {
-      await db.run("INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP", 
-      [key, JSON.stringify(value)]);
+    const dangerousBulkKeys = new Set(["products", "categories", "fighters", "alliances"]);
+    if (
+      process.env.NODE_ENV === 'production' &&
+      dangerousBulkKeys.has(key) &&
+      process.env.ENABLE_BULK_STATE_WRITE !== 'true'
+    ) {
+      return res.status(403).json({
+        error: "Actualización masiva deshabilitada en producción.",
+      });
     }
-    await db.run("COMMIT");
+    
+    // CAPTURA DE IMÁGENES ANTES DE ACTUALIZAR
+    const oldFighters = await prisma.fighters.findMany({ select: { image: true } });
+    const oldAlliances = await prisma.alliances.findMany({ select: { imagen: true } });
+    const oldProductImages = await prisma.product_images.findMany({ select: { url: true } });
+    
+    const oldImages = [
+      ...oldFighters.map(f => f.image),
+      ...oldAlliances.map(a => a.imagen),
+      ...oldProductImages.map(p => p.url)
+    ].filter(u => u && u.startsWith('/uploads/'));
+
+    await prisma.$transaction(async (tx) => {
+      if (key === "products") {
+        const arr = Array.isArray(value) ? value : [];
+        const incomingIds = arr.map(p => normalizeProduct(p).id);
+        
+        if (incomingIds.length > 0) {
+          await tx.products.deleteMany({ where: { id: { notIn: incomingIds } } });
+        } else {
+          await tx.products.deleteMany({});
+        }
+
+        for (const p of arr) {
+          const np = normalizeProduct(p);
+          await tx.product_images.deleteMany({ where: { product_id: np.id } });
+
+          await tx.products.upsert({
+            where: { id: np.id },
+            create: {
+              id: np.id, sku: np.sku, label: np.label, cat: np.cat, subcat: np.subcat,
+              active: np.active ? 1 : 0, is_featured: np.isFeatured ? 1 : 0,
+              price: np.price, stock: np.stock, variant: np.variant, name: np.name,
+              desc: np.desc, badge: np.badge, sizes: np.sizes, stock_by_size: np.stockBySize,
+              is_weekly_offer: np.isWeeklyOffer ? 1 : 0, offer_price: np.offerPrice,
+              offer_label: np.offerLabel, offer_start_date: np.offerStartDate,
+              offer_end_date: np.offerEndDate, offer_order: np.offerOrder,
+              featured_order: np.featuredOrder,
+              product_images: {
+                create: np.images.map((img, i) => ({
+                  sort_order: i,
+                  url: saveBase64Image(img, 'products')
+                }))
+              }
+            },
+            update: {
+              sku: np.sku, label: np.label, cat: np.cat, subcat: np.subcat,
+              active: np.active ? 1 : 0, is_featured: np.isFeatured ? 1 : 0,
+              price: np.price, stock: np.stock, variant: np.variant, name: np.name,
+              desc: np.desc, badge: np.badge, sizes: np.sizes, stock_by_size: np.stockBySize,
+              is_weekly_offer: np.isWeeklyOffer ? 1 : 0, offer_price: np.offerPrice,
+              offer_label: np.offerLabel, offer_start_date: np.offerStartDate,
+              offer_end_date: np.offerEndDate, offer_order: np.offerOrder,
+              featured_order: np.featuredOrder,
+              product_images: {
+                create: np.images.map((img, i) => ({
+                  sort_order: i,
+                  url: saveBase64Image(img, 'products')
+                }))
+              }
+            }
+          });
+          await syncProductVariants(tx, np.id, np.stockBySize);
+        }
+      } else if (key === "categories") {
+        await tx.categories.deleteMany({});
+        const arr = Array.isArray(value) ? value : [];
+        const seen = new Set();
+        let sort = 0;
+        for (const cat of arr) {
+          if (!cat) continue;
+          const name = normalizeString(typeof cat === 'string' ? cat : cat.name);
+          if (!name || name === "Todos") continue;
+          if (seen.has(name)) continue; 
+          seen.add(name);
+          const subcats = normalizeStringList(cat.subcategories);
+          await tx.categories.create({
+            data: { name, sort_order: sort++, subcategories: subcats }
+          });
+        }
+      } else if (key === "fighters") {
+        await tx.fighters.deleteMany({});
+        const arr = Array.isArray(value) ? value : [];
+        for (const f of arr) {
+          const imageUrl = saveBase64Image(f.image, 'fighters');
+          await tx.fighters.create({
+            data: {
+              id: asId(f.id, Date.now()).slice(0, 120),
+              name: normalizeString(f.name),
+              title: normalizeString(f.title),
+              specialty: normalizeString(f.specialty),
+              weight: normalizeString(f.weight),
+              level: normalizeString(f.level) || "AMATEUR",
+              record: normalizeString(f.record),
+              handle: normalizeString(f.handle),
+              image: imageUrl
+            }
+          });
+        }
+      } else if (key === "alliances") {
+        await tx.alliances.deleteMany({});
+        const arr = Array.isArray(value) ? value : [];
+        for (const a of arr) {
+          const imageUrl = saveBase64Image(a.imagen, 'alliances');
+          await tx.alliances.create({
+            data: {
+              id: asId(a.id, Date.now()).slice(0, 120),
+              nombre: normalizeString(a.nombre),
+              tag: normalizeString(a.tag),
+              ubicacion: normalizeString(a.ubicacion),
+              direccion: normalizeString(a.direccion),
+              email: normalizeString(a.email),
+              telefono: normalizeString(a.telefono),
+              horario: normalizeString(a.horario),
+              dias: normalizeString(a.dias),
+              status: normalizeString(a.status) || "partner",
+              descripcion: normalizeString(a.descripcion),
+              imagen: imageUrl,
+              instagram: normalizeString(a.instagram),
+              website: normalizeUrl(a.website)
+            }
+          });
+        }
+      } else {
+        await tx.app_state.upsert({
+          where: { key },
+          create: { key, value: JSON.stringify(value) },
+          update: { value: JSON.stringify(value), updated_at: new Date() }
+        });
+      }
+    });
 
     // LIMPIEZA DE ARCHIVOS HUÉRFANOS
     try {
-      const newImages = (await db.all("SELECT url FROM product_images UNION SELECT image as url FROM fighters UNION SELECT imagen as url FROM alliances"))
-        .map(r => r.url)
-        .filter(u => u && u.startsWith('/uploads/'));
+      const newFighters = await prisma.fighters.findMany({ select: { image: true } });
+      const newAlliances = await prisma.alliances.findMany({ select: { imagen: true } });
+      const newProductImages = await prisma.product_images.findMany({ select: { url: true } });
+      
+      const newImages = [
+        ...newFighters.map(f => f.image),
+        ...newAlliances.map(a => a.imagen),
+        ...newProductImages.map(p => p.url)
+      ].filter(u => u && u.startsWith('/uploads/'));
       
       const orphaned = oldImages.filter(url => !newImages.includes(url));
       if (orphaned.length > 0) {
@@ -184,7 +296,7 @@ export const updateState = async (req, res) => {
           try {
             const filePath = join(ROOT_DIR, 'data', url);
             unlinkSync(filePath);
-          } catch (e) { /* ignore delete errors */ }
+          } catch { /* ignore delete errors */ }
         }
         console.log(`Limpieza de disco: ${orphaned.length} archivos eliminados.`);
       }
@@ -194,38 +306,40 @@ export const updateState = async (req, res) => {
 
     res.json({ ok: true });
   } catch (error) {
-    try { await (await getDb()).run("ROLLBACK"); } catch (e) { /* ignore rollback error */ }
     console.error("Update state error:", error);
     res.status(500).json({ 
       error: "Error al actualizar estado", 
-      details: error.message,
-      stack: error.stack 
+      details: error.message
     });
   }
 };
 
 export const updateCart = async (req, res) => {
   try {
-    const db = await getDb();
     if (req.session?.id) {
       const cart = Array.isArray(req.body.value) ? req.body.value : [];
-      await db.run("UPDATE sessions SET cart = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [JSON.stringify(cart), req.session.id]);
+      await prisma.sessions.update({
+        where: { id: req.session.id },
+        data: { cart: cart, updated_at: new Date() }
+      });
     }
     res.json({ ok: true });
-  } catch (e) {
+  } catch {
     res.status(500).json({ error: "Error" });
   }
 };
 
 export const updateCheckoutPrefs = async (req, res) => {
   try {
-    const db = await getDb();
     if (req.session?.id) {
       const prefs = req.body.value && typeof req.body.value === 'object' ? req.body.value : {};
-      await db.run("UPDATE sessions SET checkout_prefs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [JSON.stringify(prefs), req.session.id]);
+      await prisma.sessions.update({
+        where: { id: req.session.id },
+        data: { checkout_prefs: prefs, updated_at: new Date() }
+      });
     }
     res.json({ ok: true });
-  } catch (e) {
+  } catch {
     res.status(500).json({ error: "Error" });
   }
 };

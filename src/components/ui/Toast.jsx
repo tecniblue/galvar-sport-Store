@@ -1,9 +1,9 @@
 import React, { useContext } from "react";
 import { Zap } from "lucide-react";
-import { AppContext } from "../../context/AppContext";
+import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../store";
 
 export default function Toast() {
-  const { toast } = useContext(AppContext);
+  const toast = useUIStore(state => state.toast);
 
   return (
     <div

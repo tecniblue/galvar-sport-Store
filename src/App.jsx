@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { AppProvider } from './context/AppProvider';
 
 // Componentes
 import { Navbar, Footer } from './components/layout';
@@ -14,6 +13,7 @@ import AdminPage from './pages/AdminPage';
 import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import InfoPage from './pages/InfoPage';
+import { useUIStore } from './store';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -29,9 +29,30 @@ function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
+  const isBootstrapping = useUIStore(s => s.isBootstrapping);
+
+  if (isBootstrapping) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: '#0a0a0a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: '16px', zIndex: 9999
+      }}>
+        <div style={{
+          width: '48px', height: '48px',
+          border: '3px solid #333',
+          borderTop: '3px solid #e53e3e',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <span style={{ color: '#666', fontSize: '14px', letterSpacing: '0.05em' }}>Cargando...</span>
+      </div>
+    );
+  }
 
   return (
-    <AppProvider>
       <Router>
         <ScrollToTop />
         <Toast />
@@ -54,7 +75,6 @@ function App() {
 
         <Footer />
       </Router>
-    </AppProvider>
   );
 }
 

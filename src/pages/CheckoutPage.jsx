@@ -1,19 +1,15 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   AlertCircle,
-  CheckCircle2,
   CreditCard,
-  Loader2,
-  Lock,
-  MessageSquare,
   ShieldCheck,
-  Store,
-  Truck,
+  ShoppingBag,
 } from "lucide-react";
-import { AppContext } from "../context/AppContext";
-import { saveOrder, createMercadoPagoPreference } from "../services/api";
+import { useCatalogStore, useCartStore } from "../store";
+import { saveOrder, createMercadoPagoPreference, processMercadoPagoPayment } from "../services/api";
+import { MercadoPagoBrick } from "../features/checkout/components/MercadoPagoBrick";
 
 import { digitsOnly, formatRut, createClientOrderId } from "../features/checkout/utils/checkout.utils";
 import { CHECKOUT_STEPS, CheckoutProcessingOverlay } from "../features/checkout/components/CheckoutProcessingOverlay";
@@ -23,17 +19,38 @@ import { DeliveryMethods } from "../features/checkout/components/DeliveryMethods
 import { PaymentMethods } from "../features/checkout/components/PaymentMethods";
 import { OrderSummary } from "../features/checkout/components/OrderSummary";
 
+const MERCADO_PAGO_STATUS_MESSAGES = {
+  cc_rejected_other_reason:
+    "El pago fue rechazado por Mercado Pago. No se realizo ningun cobro. Intenta nuevamente o usa otra tarjeta.",
+  cc_rejected_insufficient_amount:
+    "El pago fue rechazado por fondos insuficientes. No se realizo ningun cobro. Prueba con otra tarjeta o medio de pago.",
+  cc_rejected_bad_filled_security_code:
+    "El codigo de seguridad de la tarjeta no es valido. Revisa el CVV e intenta nuevamente.",
+  cc_rejected_bad_filled_date:
+    "La fecha de vencimiento de la tarjeta no es valida. Revisa mes y ano e intenta nuevamente.",
+  cc_rejected_bad_filled_other:
+    "Hay un error en los datos de la tarjeta. Revisa la informacion ingresada e intenta nuevamente.",
+  cc_rejected_call_for_authorize:
+    "El pago necesita autorizacion del emisor de la tarjeta. Contacta a tu banco o intenta con otra tarjeta.",
+};
+
+const getMercadoPagoStatusMessage = (result) => {
+  const detail = String(result?.status_detail || "").trim();
+  if (detail && MERCADO_PAGO_STATUS_MESSAGES[detail]) {
+    return MERCADO_PAGO_STATUS_MESSAGES[detail];
+  }
+
+  return "No pudimos procesar el pago. No se realizo ningun cobro. Intenta nuevamente o usa otra tarjeta.";
+};
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    cart,
-    setCart,
-    products,
-    setProducts,
-    checkoutPrefs,
-    setCheckoutPrefs,
-  } = useContext(AppContext);
+  const cart = useCartStore(state => state.cart);
+  const setCart = useCartStore(state => state.setCart);
+  const products = useCatalogStore(state => state.products);
+  const checkoutPrefs = useCartStore(state => state.checkoutPrefs);
+  const setCheckoutPrefs = useCartStore(state => state.setCheckoutPrefs);
 
   const formatCLP = useCallback((value) => {
     const num = typeof value === "number" ? value : Number(value);
@@ -77,6 +94,9 @@ export default function CheckoutPage() {
   const [isPaying, setIsPaying] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(CHECKOUT_STEPS[0]);
   const [checkoutError, setCheckoutError] = useState("");
+  const [showMPBrick, setShowMPBrick] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [preferenceId, setPreferenceId] = useState(null);
   const submitLockRef = useRef(false);
   const clientOrderIdRef = useRef(createClientOrderId());
 
@@ -85,7 +105,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isPaying) return undefined;
 
-    setCheckoutStep(CHECKOUT_STEPS[0]);
     const timers = [
       window.setTimeout(() => setCheckoutStep(CHECKOUT_STEPS[1]), 900),
       window.setTimeout(() => setCheckoutStep(CHECKOUT_STEPS[2]), 2200),
@@ -98,19 +117,26 @@ export default function CheckoutPage() {
     return cart
       .map((item) => {
         const product = products.find((productItem) => productItem.id === item.id);
-        const available = Number(product?.stock) || 0;
-        const requested = Number(item?.qty) || 0;
-
         if (!product) {
           return `${item.name}: ya no existe en el catalogo.`;
         }
 
+        let available = Number(product.stock) || 0;
+        if (item.size) {
+          const sInfo = (product.stockBySize || product.stock_by_size || {})[item.size];
+          if (sInfo) {
+            available = Number(sInfo.stock) || 0;
+          }
+        }
+
+        const requested = Number(item?.qty) || 0;
+
         if (available <= 0) {
-          return `${item.name}: sin stock disponible.`;
+          return `${item.name}${item.size ? ` (${item.size})` : ""}: sin stock disponible.`;
         }
 
         if (requested > available) {
-          return `${item.name}: solo quedan ${available} unidades.`;
+          return `${item.name}${item.size ? ` (${item.size})` : ""}: solo quedan ${available} unidades.`;
         }
 
         return null;
@@ -211,7 +237,7 @@ export default function CheckoutPage() {
     return lines.join("\n");
   }, [address, cart, region, comuna, email, formatCLP, fulfillment, fullName, notes, phone, rut, total]);
 
-  const finalizeOrder = useCallback((savedOrderId, savedOrderNumber, savedEmailResult) => {
+  const finalizeOrder = useCallback((savedOrderId, savedOrderNumber, savedEmailResult, forcedStatus = null) => {
     const orderSummary = {
       id: savedOrderId ?? `GS-${Date.now().toString(36).toUpperCase()}`,
       order_number: savedOrderNumber ?? null,
@@ -231,12 +257,14 @@ export default function CheckoutPage() {
         label: item.label,
         image: item.images?.[0] ?? "",
         variant: item.variant,
+        size: item.size,
         qty: Number(item.qty) || 0,
         price: Number(item.effectivePrice ?? item.price) || 0,
         originalPrice: Number(item.price) || 0,
         isOffer: Boolean(item.isWeeklyOffer),
       })),
       total,
+      status: forcedStatus || (paymentMethod === "whatsapp" ? "confirmed" : "pending"),
       emailResult: savedEmailResult ?? null,
     };
 
@@ -257,16 +285,10 @@ export default function CheckoutPage() {
     notes: String(notes).trim(),
     items: cart.map((item) => ({
       id: item.id,
-      name: item.name,
-      sku: item.sku,
-      label: item.label,
-      variant: item.variant,
-      image: item.images?.[0] ?? "",
+      size: item.size,
       qty: Number(item.qty) || 0,
-      price: Number(item.effectivePrice ?? item.price) || 0,
     })),
-    total,
-  }), [address, cart, region, comuna, email, fulfillment, fullName, notes, paymentMethod, phone, rut, total]);
+  }), [address, cart, region, comuna, email, fulfillment, fullName, notes, paymentMethod, phone, rut]);
 
   const handlePay = async () => {
     if (cartIsEmpty || isPaying || submitLockRef.current) return;
@@ -275,6 +297,7 @@ export default function CheckoutPage() {
 
     persistPrefs({ fulfillment, paymentMethod });
     setCheckoutError("");
+    setCheckoutStep(CHECKOUT_STEPS[0]);
     setIsPaying(true);
     submitLockRef.current = true;
     const whatsappWindow =
@@ -282,13 +305,18 @@ export default function CheckoutPage() {
 
     try {
       if (paymentMethod === "mercadopago") {
+        // createMercadoPagoPreference ya crea la orden internamente; NO llamar saveOrder por separado
         const preference = await createMercadoPagoPreference(buildOrderPayload());
-        if (preference && preference.init_point) {
-          window.location.href = preference.init_point;
-          return;
+        if (preference && preference.id && preference.order) {
+          setPreferenceId(preference.id);
+          setCurrentOrder(preference.order);
+          setShowMPBrick(true);
         } else {
           throw new Error("No se pudo iniciar el pago con Mercado Pago");
         }
+        setIsPaying(false);
+        submitLockRef.current = false;
+        return;
       }
 
       const saved = await saveOrder(buildOrderPayload());
@@ -352,6 +380,121 @@ export default function CheckoutPage() {
           >
             Ir a la tienda
           </button>
+        </div>
+      ) : showMPBrick ? (
+        <div className="max-w-6xl mx-auto">
+          {/* Header de la fase de pago */}
+          <div className="flex items-center gap-4 mb-10">
+             <div className="h-px flex-grow bg-zinc-800"></div>
+             <div className="flex items-center gap-3">
+                <CreditCard className="text-green-500" size={20} />
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Procesar Pago Seguro</h2>
+             </div>
+             <div className="h-px flex-grow bg-zinc-800"></div>
+          </div>
+
+          <div className="grid lg:grid-cols-12 gap-12 items-start">
+            {/* Columna del Formulario */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="glass rounded-[3rem] border border-zinc-900 p-2 overflow-hidden shadow-2xl shadow-black/50">
+                <MercadoPagoBrick
+                  key={preferenceId}
+                  publicKey={import.meta.env.VITE_MP_PUBLIC_KEY}
+                  amount={total}
+                  preferenceId={preferenceId}
+                  description={`Pedido Galvar Sport #${currentOrder?.order_number || ""}`}
+                  externalReference={currentOrder?.id}
+                  payerEmail={email}
+                  onSubmit={async (paymentData) => {
+                    try {
+                      if (paymentData.selected_payment_method === "wallet_purchase") {
+                        setCheckoutError(
+                          "Se abrió Mercado Pago en otra pestaña. Completa el pago allí y vuelve a la tienda desde Mercado Pago.",
+                        );
+                        return;
+                      }
+
+                      const result = await processMercadoPagoPayment(paymentData);
+                      if (result.status === "approved" || result.status === "in_process" || result.status === "pending") {
+                        const finalStatus = result.status === "approved" ? "confirmed" : "pending";
+                        finalizeOrder(currentOrder?.id, currentOrder?.order_number, null, finalStatus);
+                      } else {
+                        throw new Error(getMercadoPagoStatusMessage(result));
+                      }
+                    } catch (err) {
+                      setCheckoutError(err.message || "Error al procesar el pago");
+                      throw err;
+                    }
+                  }}
+                  onError={() => {
+                    setCheckoutError("Error al cargar el formulario de pago.");
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between px-6">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                   <ShieldCheck size={14} className="text-green-500" />
+                   Pago encriptado por Mercado Pago
+                </div>
+                <button
+                  onClick={() => setShowMPBrick(false)}
+                  className="text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2"
+                >
+                  <ArrowLeft size={12} /> Cancelar y volver
+                </button>
+              </div>
+            </div>
+
+            {/* Columna del Resumen (Derecha) */}
+            <aside className="lg:col-span-5 space-y-6 sticky top-32">
+              <div className="glass rounded-[3rem] border border-zinc-900 p-8 md:p-10 shadow-2xl shadow-black/50">
+                 <h3 className="text-xl font-black italic uppercase text-white mb-8 flex items-center gap-3">
+                   <ShoppingBag size={20} className="text-green-500" />
+                   Resumen
+                 </h3>
+                 
+                 <div className="space-y-4 mb-10 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                   {cart.map(item => (
+                     <div key={item.id + (item.variant || '')} className="flex gap-4 group">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-zinc-800 flex-shrink-0 overflow-hidden">
+                           {item.images?.[0] ? (
+                             <img src={item.images[0]} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                           ) : <div className="w-full h-full grid place-items-center text-[10px] text-zinc-700">GS</div>}
+                        </div>
+                        <div className="flex-grow min-w-0">
+                           <p className="text-[11px] font-black uppercase text-white truncate">{item.name}</p>
+                           <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-tight">
+                              {item.qty} unidad{item.qty > 1 ? 'es' : ''} {item.variant ? `— ${item.variant}` : ''} {item.size ? `(${item.size})` : ''}
+                           </p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[11px] font-black text-white italic">${formatCLP(item.price * item.qty)}</p>
+                        </div>
+                     </div>
+                   ))}
+                 </div>
+
+                 <div className="space-y-3 pt-6 border-t border-zinc-800/50">
+                    <div className="flex justify-between items-center opacity-60">
+                       <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Subtotal</span>
+                       <span className="text-xs font-black text-white">${formatCLP(total)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Total a pagar</span>
+                       <span className="text-4xl font-black italic text-white tracking-tighter">${formatCLP(total)}</span>
+                    </div>
+                 </div>
+              </div>
+
+              {checkoutError && (
+                <div className="p-5 rounded-3xl border border-red-500/20 bg-red-500/5 text-red-500 flex gap-3 items-start animate-in fade-in slide-in-from-top-4 duration-300">
+                   <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                   <p className="text-xs font-bold leading-relaxed">{checkoutError}</p>
+                </div>
+              )}
+            </aside>
+          </div>
         </div>
       ) : (
         <div className="grid lg:grid-cols-5 gap-8 md:gap-10">

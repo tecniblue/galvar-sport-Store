@@ -13,6 +13,7 @@ export default memo(function ProductCard({
   const hasStockInfo = Number.isFinite(stock);
   const isOutOfStock = hasStockInfo && stock <= 0;
   const hasSizes = Array.isArray(product?.sizes) && product.sizes.length > 0;
+  const isOfferActive = Boolean(product?.isOfferActive);
   const fallbackLabel =
     String(product?.label ?? "").trim() ||
     String(product?.name ?? "GS").trim().slice(0, 2).toUpperCase();
@@ -21,7 +22,7 @@ export default memo(function ProductCard({
     <div
       className={`product-card product-card--${variant}${
         isOutOfStock ? " product-card--sold-out" : ""
-      }${product.isWeeklyOffer ? " product-card--on-offer" : ""}`}
+      }${isOfferActive ? " product-card--on-offer" : ""}`}
       onClick={() => onViewDetails?.(product)}
       role="button"
       tabIndex={0}
@@ -50,7 +51,7 @@ export default memo(function ProductCard({
           <div className="product-card__badge">{product.badge}</div>
         ) : null}
 
-        {product.isWeeklyOffer && product.offerLabel && !isOutOfStock ? (
+        {isOfferActive && product.offerLabel && !isOutOfStock ? (
           <div className="product-card__offer-label">{product.offerLabel}</div>
         ) : null}
 
@@ -122,7 +123,7 @@ export default memo(function ProductCard({
         ) : null}
 
         <div className="product-card__price-container">
-          {product.isWeeklyOffer && product.offerPrice ? (
+          {isOfferActive && product.offerPrice ? (
             <>
               <span className="product-card__price product-card__price--offer">
                 {`$${Number(product.offerPrice).toLocaleString("es-CL")}`}

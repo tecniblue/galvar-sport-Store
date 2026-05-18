@@ -29,7 +29,7 @@ export default function ProductDetailsModal({
   const priceInfo = useMemo(() => {
     const original = Number(product?.price);
     const offer = Number(product?.offerPrice);
-    const isOffer = product?.isWeeklyOffer && offer > 0;
+    const isOffer = product?.isOfferActive && offer > 0;
     
     return {
       original: Number.isFinite(original) ? original.toLocaleString("es-CL") : "0",
@@ -160,7 +160,7 @@ export default function ProductDetailsModal({
                     # {product.sku}
                   </span>
                 ) : null}
-                {product.isWeeklyOffer && product.offerLabel && (
+                {product.isOfferActive && product.offerLabel && (
                   <span className="text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">
                     {product.offerLabel}
                   </span>
@@ -187,20 +187,28 @@ export default function ProductDetailsModal({
                   Selecciona tu talla / onza
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {sizes.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => setSelectedSize(size)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
-                        selectedSize === size
-                          ? "bg-green-500 border-green-400 text-black shadow-lg shadow-green-500/20"
-                          : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-green-500/50 hover:text-green-400"
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {sizes.map((size) => {
+                    const sInfo = (product?.stockBySize || product?.stock_by_size || {})[size];
+                    const sizeOutOfStock = sInfo && Number(sInfo.stock) <= 0;
+                    
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => !sizeOutOfStock && setSelectedSize(size)}
+                        disabled={sizeOutOfStock}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                          selectedSize === size
+                            ? "bg-green-500 border-green-400 text-black shadow-lg shadow-green-500/20"
+                            : sizeOutOfStock
+                              ? "bg-zinc-950 border-zinc-900 text-zinc-700 cursor-not-allowed line-through"
+                              : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-green-500/50 hover:text-green-400"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -215,11 +223,25 @@ export default function ProductDetailsModal({
                 ) : (
                   <span className="text-3xl md:text-4xl font-black text-white">${priceInfo.original}</span>
                 )}
-                {Number.isFinite(stock) ? (
-                  <p className="text-[11px] uppercase tracking-widest font-bold text-zinc-500">
-                    {isOutOfStock ? "Sin stock" : `${stock} unidades disponibles`}
-                  </p>
-                ) : null}
+                
+                {(() => {
+                  let displayStock = stock;
+                  let isSizeOutOfStock = isOutOfStock;
+
+                  if (selectedSize) {
+                    const sInfo = (product?.stockBySize || product?.stock_by_size || {})[selectedSize];
+                    if (sInfo) {
+                      displayStock = Number(sInfo.stock);
+                      isSizeOutOfStock = displayStock <= 0;
+                    }
+                  }
+
+                  return Number.isFinite(displayStock) ? (
+                    <p className={`text-[11px] uppercase tracking-widest font-bold ${isSizeOutOfStock ? "text-red-500" : "text-zinc-500"}`}>
+                      {isSizeOutOfStock ? "Sin stock" : `${displayStock} unidades disponibles`}
+                    </p>
+                  ) : null;
+                })()}
               </div>
               <button
                 type="button"
@@ -229,6 +251,19 @@ export default function ProductDetailsModal({
                     alert("Por favor selecciona una talla antes de añadir al pedido.");
                     return;
                   }
+                  
+                  // Final stock validation for variant
+                  if (selectedSize) {
+                    const sInfo = (product?.stockBySize || product?.stock_by_size || {})[selectedSize];
+                    if (sInfo && Number(sInfo.stock) <= 0) {
+                      alert("Lo sentimos, esta talla se acaba de agotar.");
+                      return;
+                    }
+                  } else if (isOutOfStock) {
+                    alert("Lo sentimos, este producto se acaba de agotar.");
+                    return;
+                  }
+
                   onAddToCart(product, selectedSize);
                   onClose();
                 }}
