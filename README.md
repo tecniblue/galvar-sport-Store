@@ -78,6 +78,10 @@ O por separado:
 
 ## 📦 Despliegue en Producción
 
+Para el despliegue recomendado en VPS Ubuntu con NIC.CL + Cloudflare + Nginx + PM2, revisa:
+
+- [`docs/deploy-nic-cloudflare.md`](docs/deploy-nic-cloudflare.md)
+
 1. Genera el build optimizado del cliente:
    ```bash
    npm run build
