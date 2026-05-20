@@ -156,9 +156,13 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
 
     const priceNumber = Number(formData.price);
     const stockNumber = Number(formData.stock);
+    const editingId = String(editingProduct?.id ?? "").trim();
+    const formId = String(formData.id ?? "").trim();
+    const productId = editingId || formId || String(Date.now());
+    const hasExistingProductId = Boolean(editingId);
     const productToSave = {
       ...formData,
-      id: editingProduct?.id ?? formData.id ?? Date.now(),
+      id: productId,
       sku,
       label: formData.label.trim(),
       badge: formData.badge.trim(),
@@ -183,14 +187,14 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
     };
 
     try {
-      if (editingProduct?.id != null) {
+      if (hasExistingProductId) {
         await updateProduct(productToSave.id, productToSave);
       } else {
         await createProduct(productToSave);
       }
 
       setProducts(prev => {
-        if (editingProduct?.id != null) {
+        if (hasExistingProductId) {
           return prev.map((p) => (p.id === editingProduct.id ? productToSave : p));
         }
         return [...prev, productToSave];
