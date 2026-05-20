@@ -98,6 +98,7 @@ const normalizeCategoryList = (items) => {
 };
 
 const normalizeProduct = (product) => {
+  const id = String(product?.id || product?.sku || product?.name || Date.now()).trim();
   const rawOrder = product?.featuredOrder;
   const parsedOrder = rawOrder !== undefined && rawOrder !== null && rawOrder !== "" && !Number.isNaN(Number(rawOrder)) ? Number(rawOrder) : null;
   const stockBySize = product?.stockBySize || product?.stock_by_size || {};
@@ -115,7 +116,7 @@ const normalizeProduct = (product) => {
 
   return {
     ...product,
-    id: String(product?.id ?? product?.sku ?? product?.name ?? Date.now()),
+    id,
     sku: String(product?.sku ?? "").trim(),
     label: String(product?.label ?? "").trim().slice(0, 3),
     cat: String(product?.cat ?? product?.category ?? "Accesorios").trim() || "Accesorios",

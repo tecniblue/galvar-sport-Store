@@ -26,6 +26,7 @@ export const createApp = async () => {
         "default-src": ["'self'"],
         "script-src": [
           "'self'",
+          "'unsafe-inline'",
           "https://sdk.mercadopago.com",
           "https://static.cloudflareinsights.com",
         ],

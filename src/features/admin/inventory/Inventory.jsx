@@ -15,6 +15,7 @@ const stockStatus = (s) => {
 };
 
 const EMPTY_LIST = [];
+const normalizeProductId = (id) => String(id ?? "").trim();
 const NOOP = () => {};
 const CATEGORY_SEARCH_ALL = "";
 
@@ -112,14 +113,16 @@ export default function Inventory() {
   }), [products]);
 
   const adjustStock = useCallback(async (id, delta) => {
-    const product = products.find(p => p.id === id);
+    const productId = normalizeProductId(id);
+    if (!productId) return;
+    const product = products.find(p => normalizeProductId(p.id) === productId);
     if (!product) return;
     const newStock = Math.max(0, (Number(product.stock) || 0) + delta);
     
     try {
-      await updateProduct(id, { ...product, stock: newStock });
+      await updateProduct(productId, { ...product, id: productId, stock: newStock });
       setProducts(prev => prev.map(p =>
-        p.id === id ? { ...p, stock: newStock } : p
+        normalizeProductId(p.id) === productId ? { ...p, id: productId, stock: newStock } : p
       ));
     } catch (e) {
       console.error(e);
@@ -128,13 +131,19 @@ export default function Inventory() {
   }, [setProducts, products]);
 
   const commitStockEdit = useCallback(async (id) => {
+    const productId = normalizeProductId(id);
+    if (!productId) {
+      setEditingStockId(null);
+      setStockDraft("");
+      return;
+    }
     const n = parseInt(stockDraft, 10);
     if (!isNaN(n) && n >= 0) {
-      const product = products.find(p => p.id === id);
+      const product = products.find(p => normalizeProductId(p.id) === productId);
       if (product) {
         try {
-          await updateProduct(id, { ...product, stock: n });
-          setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: n } : p));
+          await updateProduct(productId, { ...product, id: productId, stock: n });
+          setProducts(prev => prev.map(p => normalizeProductId(p.id) === productId ? { ...p, id: productId, stock: n } : p));
         } catch (e) {
            console.error(e);
            alert("Error al actualizar stock");
@@ -169,34 +178,43 @@ export default function Inventory() {
   };
 
   const deleteProduct = async (id) => {
+    const productId = normalizeProductId(id);
+    if (!productId) {
+      alert("No se puede eliminar un producto sin ID. Refresca el admin e intentalo de nuevo.");
+      return;
+    }
     if (!window.confirm("Seguro que quieres eliminar este producto?")) return;
     try {
-      await apiDeleteProduct(id);
-      setProducts((prev) => prev.filter((product) => product.id !== id));
+      await apiDeleteProduct(productId);
+      setProducts((prev) => prev.filter((product) => normalizeProductId(product.id) !== productId));
     } catch(e) { console.error(e); alert("Error"); }
   };
 
   const toggleProductActive = async (id) => {
-    const p = products.find(prod => prod.id === id);
+    const productId = normalizeProductId(id);
+    if (!productId) return;
+    const p = products.find(prod => normalizeProductId(prod.id) === productId);
     if(!p) return;
     try {
-      await updateProduct(id, { ...p, active: !(p.active !== false) });
+      await updateProduct(productId, { ...p, id: productId, active: !(p.active !== false) });
       setProducts((prev) =>
         prev.map((product) =>
-          product.id === id ? { ...product, active: !(product.active !== false) } : product
+          normalizeProductId(product.id) === productId ? { ...product, id: productId, active: !(product.active !== false) } : product
         )
       );
     } catch(e) { console.error(e); alert("Error"); }
   };
 
   const toggleProductFeatured = async (id) => {
-    const p = products.find(prod => prod.id === id);
+    const productId = normalizeProductId(id);
+    if (!productId) return;
+    const p = products.find(prod => normalizeProductId(prod.id) === productId);
     if(!p) return;
     try {
-      const updatedP = syncFeaturedProduct(p, !p.isFeatured, products);
-      await updateProduct(id, updatedP);
+      const updatedP = syncFeaturedProduct({ ...p, id: productId }, !p.isFeatured, products);
+      await updateProduct(productId, updatedP);
       setProducts((prev) =>
-        prev.map((product) => product.id === id ? updatedP : product)
+        prev.map((product) => normalizeProductId(product.id) === productId ? updatedP : product)
       );
     } catch(e) { console.error(e); alert("Error"); }
   };
