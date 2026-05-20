@@ -40,6 +40,8 @@ export const createApp = async () => {
           "https://*.mercadopago.com",
           "https://*.mercadopago.cl",
           "https://*.mercadolibre.com",
+          "https://maps.google.com",
+          "https://www.google.com",
         ],
         "media-src": ["'self'", "https://*.mlstatic.com"],
       },
