@@ -94,6 +94,30 @@ const normalizeProduct = (p) => {
   };
 };
 
+const buildProductData = (p) => ({
+  sku: p.sku,
+  label: p.label,
+  cat: p.cat,
+  subcat: p.subcat,
+  active: p.active ? 1 : 0,
+  is_featured: p.isFeatured ? 1 : 0,
+  price: p.price,
+  stock: p.stock,
+  variant: p.variant,
+  name: p.name,
+  desc: p.desc,
+  badge: p.badge,
+  sizes: p.sizes,
+  stock_by_size: p.stockBySize,
+  is_weekly_offer: p.isWeeklyOffer ? 1 : 0,
+  offer_price: p.offerPrice,
+  offer_label: p.offerLabel,
+  offer_start_date: p.offerStartDate,
+  offer_end_date: p.offerEndDate,
+  offer_order: p.offerOrder,
+  featured_order: p.featuredOrder,
+});
+
 export const createProduct = async (req, res) => {
   try {
     const p = normalizeProduct(req.body);
@@ -102,27 +126,7 @@ export const createProduct = async (req, res) => {
       await tx.products.create({
         data: {
           id: p.id,
-          sku: p.sku,
-          label: p.label,
-          cat: p.cat,
-          subcat: p.subcat,
-          active: p.active ? 1 : 0,
-          is_featured: p.isFeatured ? 1 : 0,
-          price: p.price,
-          stock: p.stock,
-          variant: p.variant,
-          name: p.name,
-          desc: p.desc,
-          badge: p.badge,
-          sizes: p.sizes,
-          stock_by_size: p.stockBySize,
-          is_weekly_offer: p.isWeeklyOffer ? 1 : 0,
-          offer_price: p.offerPrice,
-          offer_label: p.offerLabel,
-          offer_start_date: p.offerStartDate,
-          offer_end_date: p.offerEndDate,
-          offer_order: p.offerOrder,
-          featured_order: p.featuredOrder,
+          ...buildProductData(p),
           product_images: {
             create: buildNestedProductImages(p.images)
           }
@@ -144,31 +148,11 @@ export const updateProduct = async (req, res) => {
     const p = normalizeProduct({ ...req.body, id });
     
     await prisma.$transaction(async (tx) => {
-      await tx.products.update({
+      const productData = buildProductData(p);
+      await tx.products.upsert({
         where: { id },
-        data: {
-          sku: p.sku,
-          label: p.label,
-          cat: p.cat,
-          subcat: p.subcat,
-          active: p.active ? 1 : 0,
-          is_featured: p.isFeatured ? 1 : 0,
-          price: p.price,
-          stock: p.stock,
-          variant: p.variant,
-          name: p.name,
-          desc: p.desc,
-          badge: p.badge,
-          sizes: p.sizes,
-          stock_by_size: p.stockBySize,
-          is_weekly_offer: p.isWeeklyOffer ? 1 : 0,
-          offer_price: p.offerPrice,
-          offer_label: p.offerLabel,
-          offer_start_date: p.offerStartDate,
-          offer_end_date: p.offerEndDate,
-          offer_order: p.offerOrder,
-          featured_order: p.featuredOrder,
-        }
+        create: { id, ...productData },
+        update: productData,
       });
       
       await tx.product_images.deleteMany({ where: { product_id: id } });
