@@ -3,6 +3,17 @@ import { X, Upload, Trash2, Tag, Zap } from 'lucide-react';
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { createProduct, updateProduct } from '../../../services/api';
 
+const buildStableProductId = (sku, name) => {
+  const source = String(sku || name || Date.now()).trim();
+  return source
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || String(Date.now());
+};
+const normalizeProductKey = (value) => String(value ?? "").trim().toLowerCase();
+
 export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
   const setProducts = useCatalogStore(state => state.setProducts);
   const categories = useCatalogStore(state => state.categories);
@@ -71,6 +82,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
   }, [editingProduct, emptyProduct]);
 
   const [formData, setFormData] = useState(() => initialFormData);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Sync form data when the modal opens with a new product
   useEffect(() => {
@@ -147,6 +159,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     const sku = formData.sku.trim();
     const name = formData.name.trim();
     if (!sku || !name) {
@@ -158,7 +171,7 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
     const stockNumber = Number(formData.stock);
     const editingId = String(editingProduct?.id ?? "").trim();
     const formId = String(formData.id ?? "").trim();
-    const productId = editingId || formId || String(Date.now());
+    const productId = editingId || formId || buildStableProductId(sku, name);
     const hasExistingProductId = Boolean(editingId);
     const productToSave = {
       ...formData,
@@ -187,22 +200,34 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
     };
 
     try {
+      setIsSaving(true);
+      let savedProduct = productToSave;
       if (hasExistingProductId) {
-        await updateProduct(productToSave.id, productToSave);
+        const response = await updateProduct(productToSave.id, productToSave);
+        savedProduct = response?.product || productToSave;
       } else {
-        await createProduct(productToSave);
+        const response = await createProduct(productToSave);
+        savedProduct = response?.product || productToSave;
       }
 
       setProducts(prev => {
-        if (hasExistingProductId) {
-          return prev.map((p) => (p.id === editingProduct.id ? productToSave : p));
-        }
-        return [...prev, productToSave];
+        const savedId = normalizeProductKey(savedProduct.id);
+        const savedSku = normalizeProductKey(savedProduct.sku);
+        const editingKey = normalizeProductKey(editingProduct?.id);
+        const next = prev.filter((p) => {
+          const sameEditingProduct = editingKey && normalizeProductKey(p.id) === editingKey;
+          const sameSavedProduct = savedId && normalizeProductKey(p.id) === savedId;
+          const sameSku = savedSku && normalizeProductKey(p.sku) === savedSku;
+          return !(sameEditingProduct || sameSavedProduct || sameSku);
+        });
+        return [...next, savedProduct];
       });
       onClose();
     } catch (error) {
       console.error("Error saving product:", error);
       alert("Error al guardar el producto.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -539,8 +564,8 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
               )}
             </div>
 
-            <button type="button" onClick={handleSave} className="w-full bg-green-500 text-black py-4 rounded-2xl font-black uppercase italic shadow-xl shadow-green-500/20 hover:bg-white transition-colors">
-              GUARDAR CAMBIOS
+            <button type="button" onClick={handleSave} disabled={isSaving} className="w-full bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-black py-4 rounded-2xl font-black uppercase italic shadow-xl shadow-green-500/20 hover:bg-white transition-colors">
+              {isSaving ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
             </button>
           </div>
         </div>

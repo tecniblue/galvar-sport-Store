@@ -29,14 +29,6 @@ const buildProductImageRows = (productId, images) => (
     }))
     .filter((row) => row.url)
 );
-const buildNestedProductImages = (images) => (
-  images
-    .map((img, i) => ({
-      sort_order: i,
-      url: saveBase64Image(img, 'products')
-    }))
-    .filter((row) => row.url)
-);
 
 /**
  * Normaliza el mapa de stock por talla.
@@ -123,16 +115,31 @@ export const createProduct = async (req, res) => {
     const p = normalizeProduct(req.body);
     
     await prisma.$transaction(async (tx) => {
-      await tx.products.create({
-        data: {
-          id: p.id,
-          ...buildProductData(p),
-          product_images: {
-            create: buildNestedProductImages(p.images)
-          }
-        }
+      const existing = await tx.products.findFirst({
+        where: {
+          OR: [
+            { id: p.id },
+            ...(p.sku ? [{ sku: p.sku }] : []),
+          ],
+        },
+        select: { id: true },
       });
-      await syncProductVariants(tx, p.id, p.stockBySize);
+      const targetId = existing?.id || p.id;
+      const productData = buildProductData(p);
+      p.id = targetId;
+
+      await tx.products.upsert({
+        where: { id: targetId },
+        create: { id: targetId, ...productData },
+        update: productData,
+      });
+
+      await tx.product_images.deleteMany({ where: { product_id: targetId } });
+      const imageRows = buildProductImageRows(targetId, p.images);
+      if (imageRows.length) {
+        await tx.product_images.createMany({ data: imageRows });
+      }
+      await syncProductVariants(tx, targetId, p.stockBySize);
     });
 
     res.status(201).json({ ok: true, product: p });
