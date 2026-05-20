@@ -44,6 +44,8 @@ export default function Inventory() {
     products: useCatalogStore(s => s.products),
     setProducts: useCatalogStore(s => s.setProducts),
     categories: useCatalogStore(s => s.categories),
+    customCategories: useCatalogStore(s => s.customCategories),
+    setCategories: useCatalogStore(s => s.setCategories),
     fighters: useCatalogStore(s => s.fighters),
     alliances: useCatalogStore(s => s.alliances),
     cart: useCartStore(s => s.cart)
