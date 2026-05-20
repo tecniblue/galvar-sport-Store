@@ -177,16 +177,23 @@ export default function Inventory() {
     setIsModalOpen(true);
   };
 
-  const deleteProduct = async (id) => {
-    const productId = normalizeProductId(id);
+  const deleteProduct = async (product) => {
+    const productId = normalizeProductId(product?.id);
     if (!productId) {
       alert("No se puede eliminar un producto sin ID. Refresca el admin e intentalo de nuevo.");
       return;
     }
     if (!window.confirm("Seguro que quieres eliminar este producto?")) return;
     try {
-      await apiDeleteProduct(productId);
-      setProducts((prev) => prev.filter((product) => normalizeProductId(product.id) !== productId));
+      await apiDeleteProduct(productId, product);
+      const sku = String(product?.sku ?? "").trim().toLowerCase();
+      const name = String(product?.name ?? "").trim().toLowerCase();
+      const cat = String(product?.cat ?? "").trim().toLowerCase();
+      setProducts((prev) => prev.filter((item) => {
+        if (normalizeProductId(item.id) === productId) return false;
+        if (sku && String(item.sku ?? "").trim().toLowerCase() === sku) return false;
+        return !(!sku && name && cat && String(item.name ?? "").trim().toLowerCase() === name && String(item.cat ?? "").trim().toLowerCase() === cat);
+      }));
     } catch(e) { console.error(e); alert("Error"); }
   };
 
@@ -661,7 +668,7 @@ export default function Inventory() {
                           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[9px] font-black uppercase tracking-widest">
                           {product.active !== false ? <><EyeOff size={10}/>Ocultar</> : <><Eye size={10}/>Activar</>}
                         </button>
-                        <button type="button" onClick={() => deleteProduct(product.id)}
+                        <button type="button" onClick={() => deleteProduct(product)}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-600 hover:text-red-400 hover:border-red-500/30 transition-all text-[9px] font-black uppercase tracking-widest">
                           <Trash2 size={10}/>Eliminar
                         </button>

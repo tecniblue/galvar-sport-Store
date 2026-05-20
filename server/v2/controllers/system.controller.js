@@ -76,6 +76,14 @@ const normalizeProduct = (p) => {
 };
 
 // Helper methods removed as Prisma handles relations and queries natively
+const productIdentity = (product) => {
+  const sku = normalizeString(product?.sku).toLowerCase();
+  if (sku) return `sku::${sku}`;
+  const name = normalizeString(product?.name).toLowerCase();
+  const cat = normalizeString(product?.cat).toLowerCase();
+  if (name && cat) return `name::${cat}::${name}`;
+  return `id::${normalizeString(product?.id).toLowerCase()}`;
+};
 
 export const getBootstrap = async (req, res) => {
   try {
@@ -94,8 +102,16 @@ export const getBootstrap = async (req, res) => {
       prisma.fighters.findMany()
     ]);
 
+    const uniqueProducts = Array.from(
+      products.reduce((map, product) => {
+        const key = productIdentity(product);
+        if (!map.has(key)) map.set(key, product);
+        return map;
+      }, new Map()).values()
+    );
+
     res.json({
-      products: products.map(p => ({
+      products: uniqueProducts.map(p => ({
         ...p,
         active: p.active === 1,
         isFeatured: p.is_featured === 1,

@@ -122,10 +122,16 @@ export const updateProduct = (id, product) =>
     body: JSON.stringify(product),
   });
 
-export const deleteProduct = (id) =>
-  apiFetch(`/catalog/products/${id}`, {
+export const deleteProduct = (id, product = {}) => {
+  const params = new URLSearchParams();
+  if (product.sku) params.set("sku", product.sku);
+  if (product.name) params.set("name", product.name);
+  if (product.cat) params.set("cat", product.cat);
+  const query = params.toString();
+  return apiFetch(`/catalog/products/${id}${query ? `?${query}` : ""}`, {
     method: "DELETE",
   });
+};
 
 export const createCategory = (categoryData) =>
   apiFetch("/catalog/categories", {

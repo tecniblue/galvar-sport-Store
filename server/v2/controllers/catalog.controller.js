@@ -181,11 +181,20 @@ export const deleteProduct = async (req, res) => {
   try {
     const id = normalizeId(req.params.id, "");
     if (!id) return res.status(400).json({ error: "ID de producto inválido" });
+    const sku = normalizeString(req.query.sku);
+    const name = normalizeString(req.query.name);
+    const cat = normalizeString(req.query.cat);
+    const or = [{ id }];
+    if (sku) {
+      or.push({ sku });
+    } else if (name && cat) {
+      or.push({ name, cat });
+    }
 
     // product_images/product_variants have onDelete: Cascade in Prisma schema.
-    // deleteMany keeps the admin cleanup idempotent when a stale duplicate only
-    // exists in the client state.
-    const result = await prisma.products.deleteMany({ where: { id } });
+    // deleteMany keeps the admin cleanup idempotent and clears duplicate rows
+    // that share the same product identity.
+    const result = await prisma.products.deleteMany({ where: { OR: or } });
     res.json({ ok: true, deleted: result.count });
   } catch (error) {
     console.error("Delete product error:", error);
