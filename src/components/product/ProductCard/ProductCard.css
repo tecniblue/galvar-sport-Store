@@ -269,15 +269,6 @@
   flex-grow: 1;
 }
 
-.product-card__sku {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.05em;
-  margin: 0;
-}
-
 .product-card__stock {
   font-size: 0.75rem;
   font-weight: 700;

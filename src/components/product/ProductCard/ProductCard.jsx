@@ -108,10 +108,6 @@ export default memo(function ProductCard({
 
         <h3 className="product-card__name">{product.name}</h3>
 
-        {!isFeatured && product.sku ? (
-          <p className="product-card__sku">SKU: {product.sku}</p>
-        ) : null}
-
         {!isFeatured && hasStockInfo ? (
           <p
             className={`product-card__stock${

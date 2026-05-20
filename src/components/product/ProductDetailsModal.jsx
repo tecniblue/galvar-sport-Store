@@ -155,11 +155,6 @@ export default function ProductDetailsModal({
                 </h2>
               </div>
               <div className="flex flex-col items-end gap-2">
-                {product.sku ? (
-                  <span className="text-[10px] font-black text-zinc-600 tracking-widest uppercase">
-                    # {product.sku}
-                  </span>
-                ) : null}
                 {product.isOfferActive && product.offerLabel && (
                   <span className="text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">
                     {product.offerLabel}

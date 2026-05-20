@@ -24,8 +24,9 @@ export default function StorePage() {
     const result = products.filter((product) => {
       if (product.active === false) return false;
       const name = String(product?.name ?? "").toLowerCase();
-      const sku = String(product?.sku ?? "").toLowerCase();
-      const matchesSearch = !searchText || name.includes(searchText) || sku.includes(searchText);
+      const category = String(product?.cat ?? "").toLowerCase();
+      const variant = String(product?.variant ?? "").toLowerCase();
+      const matchesSearch = !searchText || name.includes(searchText) || category.includes(searchText) || variant.includes(searchText);
       const matchesCat = activeCat === "Todos" || product.cat === activeCat;
       const matchesSubcat = activeSubcat === "Todos" || product.subcat === activeSubcat;
       return matchesSearch && matchesCat && matchesSubcat;
@@ -84,8 +85,8 @@ export default function StorePage() {
           <input
             type="text"
             id="store-search"
-            aria-label="Buscar productos por nombre o SKU"
-            placeholder="BUSCAR SKU O NOMBRE..."
+            aria-label="Buscar productos por nombre, categoría o diseño"
+            placeholder="BUSCAR PRODUCTO..."
             className="w-full bg-zinc-900/60 border border-zinc-800 rounded-2xl py-4 pl-14 pr-6 text-xs font-bold text-white outline-none focus:border-green-500 focus:bg-zinc-900 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
