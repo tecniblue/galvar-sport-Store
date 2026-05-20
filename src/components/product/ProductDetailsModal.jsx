@@ -84,12 +84,12 @@ export default function ProductDetailsModal({
           </button>
 
           <div className="w-full md:w-1/2 bg-black flex flex-col relative aspect-[4/3] md:aspect-auto md:min-h-[500px]">
-            <div className="flex-grow flex items-center justify-center overflow-hidden relative">
+            <div className="flex-grow flex items-center justify-center overflow-hidden relative bg-zinc-950 p-3 sm:p-4 md:p-6">
               {hasImages ? (
                 <>
                   <img
                     src={images[displayIndex]}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     alt={product.name}
                   />
                   {images.length > 1 ? (
@@ -134,7 +134,7 @@ export default function ProductDetailsModal({
                     }`}
                     aria-label={`Ver imagen ${index + 1}`}
                   >
-                    <img src={img} className="w-full h-full object-cover" alt="" />
+                    <img src={img} className="w-full h-full object-contain bg-zinc-950" alt="" />
                   </button>
                 ))}
               </div>
