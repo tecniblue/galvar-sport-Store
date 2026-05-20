@@ -177,7 +177,7 @@ export default function ProductDetailsModal({
               </div>
             ) : null}
 
-            <p className="text-zinc-400 text-sm md:text-sm leading-relaxed uppercase font-medium mb-8 md:mb-12 flex-grow overflow-y-auto custom-scrollbar pr-2 md:pr-4 whitespace-pre-line">
+            <p className="text-zinc-300 text-[13px] sm:text-sm leading-6 sm:leading-7 normal-case font-medium mb-8 md:mb-12 md:flex-grow md:overflow-y-auto custom-scrollbar md:pr-4 whitespace-pre-line break-words hyphens-auto">
               {product.desc || "Sin descripcion disponible."}
             </p>
 
