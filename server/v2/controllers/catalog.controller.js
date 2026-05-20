@@ -20,6 +20,23 @@ const normalizeUrl = (value) => {
 const normalizeStringList = (value) => (
   Array.isArray(value) ? value.map((item) => normalizeString(item)).filter(Boolean).slice(0, 50) : []
 );
+const buildProductImageRows = (productId, images) => (
+  images
+    .map((img, i) => ({
+      product_id: productId,
+      sort_order: i,
+      url: saveBase64Image(img, 'products')
+    }))
+    .filter((row) => row.url)
+);
+const buildNestedProductImages = (images) => (
+  images
+    .map((img, i) => ({
+      sort_order: i,
+      url: saveBase64Image(img, 'products')
+    }))
+    .filter((row) => row.url)
+);
 
 /**
  * Normaliza el mapa de stock por talla.
@@ -107,10 +124,7 @@ export const createProduct = async (req, res) => {
           offer_order: p.offerOrder,
           featured_order: p.featuredOrder,
           product_images: {
-            create: p.images.map((img, i) => ({
-              sort_order: i,
-              url: saveBase64Image(img, 'products')
-            }))
+            create: buildNestedProductImages(p.images)
           }
         }
       });
@@ -158,13 +172,10 @@ export const updateProduct = async (req, res) => {
       });
       
       await tx.product_images.deleteMany({ where: { product_id: id } });
-      await tx.product_images.createMany({
-        data: p.images.map((img, i) => ({
-          product_id: id,
-          sort_order: i,
-          url: saveBase64Image(img, 'products')
-        }))
-      });
+      const imageRows = buildProductImageRows(id, p.images);
+      if (imageRows.length) {
+        await tx.product_images.createMany({ data: imageRows });
+      }
       await syncProductVariants(tx, id, p.stockBySize);
     });
 

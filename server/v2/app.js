@@ -24,7 +24,11 @@ export const createApp = async () => {
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "https://sdk.mercadopago.com"],
+        "script-src": [
+          "'self'",
+          "https://sdk.mercadopago.com",
+          "https://static.cloudflareinsights.com",
+        ],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         "img-src": ["'self'", "data:", "blob:", "https://*.mlstatic.com", "https://http2.mlstatic.com"],
@@ -34,6 +38,7 @@ export const createApp = async () => {
           "https://*.mercadopago.com",
           "https://*.mercadopago.cl",
           "https://*.mercadolibre.com",
+          "https://cloudflareinsights.com",
         ],
         "frame-src": [
           "'self'",
