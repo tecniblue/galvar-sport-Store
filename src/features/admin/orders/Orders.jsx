@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { RefreshCw, ShoppingBag, Phone, Mail, MapPin, Store, CreditCard, MessageSquare, Clock, CheckCircle2, XCircle, Truck, PackageCheck, Search, Download, Hash, ChevronRight, ArrowLeft, TrendingUp } from "lucide-react";
 import { fetchOrders, updateOrderStatus, deleteOrder } from "../../../services/api";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import SectionLoader from "../../../components/ui/SectionLoader";
 
 // Valid forward transitions per status
 const ALLOWED_TRANSITIONS = {
@@ -389,10 +390,7 @@ export default function Orders() {
 
       {/* Split panel */}
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center glass rounded-[2rem] border border-zinc-900 py-20">
-          <RefreshCw size={28} className="text-green-500 animate-spin mb-4"/>
-          <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Cargando órdenes...</p>
-        </div>
+        <SectionLoader message="Cargando órdenes..." rows={5} />
       ) : error ? (
         <div className="flex-1 flex flex-col items-center justify-center glass rounded-[2rem] border border-red-500/20 py-16">
           <p className="text-[11px] font-black uppercase text-red-400 mb-4">{error}</p>

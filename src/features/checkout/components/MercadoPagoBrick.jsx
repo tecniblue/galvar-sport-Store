@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
+import BlockingOverlay from "../../../components/ui/BlockingOverlay";
 
 /**
  * MercadoPagoBrick Component
@@ -19,6 +20,7 @@ export const MercadoPagoBrick = ({
   const containerId = `mp-brick-${uid}`;
   const containerRef = useRef(null);
   const brickControllerRef = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isRenderingRef = useRef(false);
   const rafRef = useRef(null);
   const shouldEnableWallet =
@@ -78,6 +80,7 @@ export const MercadoPagoBrick = ({
               },
               onSubmit: ({ selectedPaymentMethod, formData }, additionalData) => {
                 return new Promise((resolve, reject) => {
+                  setIsSubmitting(true);
                   const normalizedPaymentData = {
                     ...(formData ?? {}),
                     selected_payment_method: selectedPaymentMethod,
@@ -92,7 +95,8 @@ export const MercadoPagoBrick = ({
                     ...normalizedPaymentData,
                   })
                     .then(resolve)
-                    .catch(reject);
+                    .catch(reject)
+                    .finally(() => setIsSubmitting(false));
                 });
               },
               onError: (error) => {
@@ -141,7 +145,8 @@ export const MercadoPagoBrick = ({
   }, [publicKey, preferenceId]);
 
   return (
-    <div className="w-full bg-zinc-950 p-2 rounded-[2.5rem] border border-zinc-900 shadow-2xl">
+    <div className="relative w-full bg-zinc-950 p-2 rounded-[2.5rem] border border-zinc-900 shadow-2xl">
+      <BlockingOverlay show={isSubmitting} message="Procesando pago..." />
       <div
         id={containerId}
         ref={containerRef}

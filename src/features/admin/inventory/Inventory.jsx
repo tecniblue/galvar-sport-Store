@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { Package, Plus, Trash2, Search, Edit3, Star, EyeOff, Eye, AlertTriangle, TrendingDown, CheckCircle2, Minus, Sparkles } from "lucide-react";
+import { Package, Plus, Trash2, Search, Edit3, Star, EyeOff, Eye, AlertTriangle, TrendingDown, CheckCircle2, Minus, Sparkles, Loader2 } from "lucide-react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import ProductModal from "./ProductModal";
 import { SimpleModal } from "../../../components/ui";
@@ -56,6 +56,8 @@ export default function Inventory() {
   const categories = app?.categories ?? EMPTY_LIST;       // includes "Todos"
   const customCategories = app?.customCategories ?? EMPTY_LIST; // without "Todos"
   const setCategories = app?.setCategories ?? NOOP;       // operates on customCategories
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [categorySearch, setCategorySearch] = useState(CATEGORY_SEARCH_ALL);
@@ -71,6 +73,7 @@ export default function Inventory() {
   const [moveTargetCategory, setMoveTargetCategory] = useState("");
   const [editingStockId, setEditingStockId] = useState(null);
   const [stockDraft, setStockDraft] = useState("");
+  const [pendingActionId, setPendingActionId] = useState(null);
   const [subcatDraft, setSubcatDraft] = useState("");
 
   const editingCategoryObj = useMemo(
@@ -120,15 +123,19 @@ export default function Inventory() {
     const newStock = Math.max(0, (Number(product.stock) || 0) + delta);
     
     try {
+      setPendingActionId(`stock:${productId}`);
       await updateProduct(productId, { ...product, id: productId, stock: newStock });
       setProducts(prev => prev.map(p =>
         normalizeProductId(p.id) === productId ? { ...p, id: productId, stock: newStock } : p
       ));
+      showSuccess("Stock actualizado");
     } catch (e) {
       console.error(e);
-      alert("Error al actualizar stock");
+      showError("Error al actualizar stock");
+    } finally {
+      setPendingActionId(null);
     }
-  }, [setProducts, products]);
+  }, [setProducts, products, showSuccess, showError]);
 
   const commitStockEdit = useCallback(async (id) => {
     const productId = normalizeProductId(id);
@@ -142,17 +149,21 @@ export default function Inventory() {
       const product = products.find(p => normalizeProductId(p.id) === productId);
       if (product) {
         try {
+          setPendingActionId(`stock:${productId}`);
           await updateProduct(productId, { ...product, id: productId, stock: n });
           setProducts(prev => prev.map(p => normalizeProductId(p.id) === productId ? { ...p, id: productId, stock: n } : p));
+          showSuccess("Stock actualizado");
         } catch (e) {
            console.error(e);
-           alert("Error al actualizar stock");
+           showError("Error al actualizar stock");
+        } finally {
+          setPendingActionId(null);
         }
       }
     }
     setEditingStockId(null);
     setStockDraft("");
-  }, [stockDraft, setProducts, products]);
+  }, [stockDraft, setProducts, products, showSuccess, showError]);
 
   const deleteCategoryCandidates = useMemo(
     () => managedCategories.filter((category) => category.name !== categoryToDelete),
@@ -185,6 +196,7 @@ export default function Inventory() {
     }
     if (!window.confirm("Seguro que quieres eliminar este producto?")) return;
     try {
+      setPendingActionId(`delete:${productId}`);
       await apiDeleteProduct(productId, product);
       const sku = String(product?.sku ?? "").trim().toLowerCase();
       const name = String(product?.name ?? "").trim().toLowerCase();
@@ -194,7 +206,9 @@ export default function Inventory() {
         if (sku && String(item.sku ?? "").trim().toLowerCase() === sku) return false;
         return !(!sku && name && cat && String(item.name ?? "").trim().toLowerCase() === name && String(item.cat ?? "").trim().toLowerCase() === cat);
       }));
-    } catch(e) { console.error(e); alert("Error"); }
+      showSuccess("Producto eliminado");
+    } catch(e) { console.error(e); showError("Error al eliminar"); }
+    finally { setPendingActionId(null); }
   };
 
   const toggleProductActive = async (id) => {
@@ -203,13 +217,16 @@ export default function Inventory() {
     const p = products.find(prod => normalizeProductId(prod.id) === productId);
     if(!p) return;
     try {
+      setPendingActionId(`active:${productId}`);
       await updateProduct(productId, { ...p, id: productId, active: !(p.active !== false) });
       setProducts((prev) =>
         prev.map((product) =>
           normalizeProductId(product.id) === productId ? { ...product, id: productId, active: !(product.active !== false) } : product
         )
       );
-    } catch(e) { console.error(e); alert("Error"); }
+      showSuccess("Producto actualizado");
+    } catch(e) { console.error(e); showError("Error al actualizar"); }
+    finally { setPendingActionId(null); }
   };
 
   const toggleProductFeatured = async (id) => {
@@ -218,12 +235,15 @@ export default function Inventory() {
     const p = products.find(prod => normalizeProductId(prod.id) === productId);
     if(!p) return;
     try {
+      setPendingActionId(`featured:${productId}`);
       const updatedP = syncFeaturedProduct({ ...p, id: productId }, !p.isFeatured, products);
       await updateProduct(productId, updatedP);
       setProducts((prev) =>
         prev.map((product) => normalizeProductId(product.id) === productId ? updatedP : product)
       );
-    } catch(e) { console.error(e); alert("Error"); }
+      showSuccess("Destacado actualizado");
+    } catch(e) { console.error(e); showError("Error al actualizar destacado"); }
+    finally { setPendingActionId(null); }
   };
 
   const handleCreateCategory = async () => {
@@ -242,12 +262,15 @@ export default function Inventory() {
     }
 
     try {
+      setPendingActionId("category:create");
       await createCategory({ name: cleaned, subcategories: [] });
       setCategories((prev) => [...prev, { name: cleaned, subcategories: [] }]);
       setActiveCategory(cleaned);
       setNewCategory("");
       setCategoryError("");
-    } catch (e) { console.error(e); setCategoryError("Error al crear"); }
+      showSuccess("Categoria creada");
+    } catch (e) { console.error(e); setCategoryError("Error al crear"); showError("Error al crear categoria"); }
+    finally { setPendingActionId(null); }
   };
 
   const openRenameCategory = (category) => {
@@ -277,6 +300,7 @@ export default function Inventory() {
     }
 
     try {
+      setPendingActionId("category:rename");
       await updateCategory(editingCategory, { newName: cleaned, subcategories: editingCategoryObj?.subcategories || [] });
       setCategories((prev) =>
         prev.map((category) => (category.name === editingCategory ? { ...category, name: cleaned } : category)),
@@ -293,8 +317,12 @@ export default function Inventory() {
       setRenameCategoryValue("");
       setCategoryError("");
       setSubcatDraft("");
+      showSuccess("Categoria actualizada");
     } catch (e) {
       console.error(e); setCategoryError("Error");
+      showError("Error al renombrar categoria");
+    } finally {
+      setPendingActionId(null);
     }
   };
 
@@ -304,9 +332,12 @@ export default function Inventory() {
     if (!(editingCategoryObj.subcategories ?? []).includes(val)) {
       const newSubcats = [...(editingCategoryObj.subcategories ?? []), val];
       try {
+        setPendingActionId("category:subcat");
         await updateCategory(editingCategory, { subcategories: newSubcats });
         setCategories(prev => prev.map(c => c.name === editingCategory ? { ...c, subcategories: newSubcats } : c));
-      } catch (e) { console.error(e); alert("Error"); }
+        showSuccess("Subcategoria añadida");
+      } catch (e) { console.error(e); showError("Error al actualizar subcategoria"); }
+      finally { setPendingActionId(null); }
     }
     setSubcatDraft("");
   };
@@ -315,9 +346,12 @@ export default function Inventory() {
     if (!editingCategoryObj) return;
     const newSubcats = (editingCategoryObj.subcategories ?? []).filter(s => s !== subcat);
     try {
+      setPendingActionId(`category:subcat:${subcat}`);
       await updateCategory(editingCategory, { subcategories: newSubcats });
       setCategories(prev => prev.map(c => c.name === editingCategory ? { ...c, subcategories: newSubcats } : c));
-    } catch (e) { console.error(e); alert("Error"); }
+      showSuccess("Subcategoria eliminada");
+    } catch (e) { console.error(e); showError("Error al eliminar subcategoria"); }
+    finally { setPendingActionId(null); }
   };
 
   const openDeleteCategory = (category) => {
@@ -344,6 +378,7 @@ export default function Inventory() {
     }
 
     try {
+      setPendingActionId("category:delete");
       await apiDeleteCategory(categoryToDelete, moveTargetCategory || undefined);
       
       if (productsInDeleteCategory.length > 0) {
@@ -375,9 +410,13 @@ export default function Inventory() {
       setCategoryToDelete(null);
       setMoveTargetCategory("");
       setCategoryError("");
+      showSuccess("Categoria eliminada");
     } catch (e) {
       console.error(e);
       setCategoryError("Error al eliminar");
+      showError("Error al eliminar categoria");
+    } finally {
+      setPendingActionId(null);
     }
   };
 
@@ -485,6 +524,7 @@ export default function Inventory() {
             <input
               type="text"
               value={newCategory}
+              disabled={pendingActionId === "category:create"}
               onChange={(event) => { setNewCategory(event.target.value); if (categoryError) setCategoryError(""); }}
               className="w-full bg-black border border-zinc-800 px-3 py-2 rounded-lg text-[11px] uppercase text-white outline-none focus:border-green-500"
               placeholder="Nueva categoría…"
@@ -493,9 +533,10 @@ export default function Inventory() {
             <button
               type="button"
               onClick={handleCreateCategory}
-              className="w-full bg-zinc-900 border border-zinc-800 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest text-white hover:border-green-500 hover:text-green-500 transition-all"
+              disabled={pendingActionId === "category:create"}
+              className="w-full bg-zinc-900 border border-zinc-800 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest text-white hover:border-green-500 hover:text-green-500 transition-all disabled:opacity-50"
             >
-              + Agregar categoría
+              {pendingActionId === "category:create" ? "Agregando..." : "+ Agregar categoría"}
             </button>
           </div>
         </aside>
@@ -567,6 +608,11 @@ export default function Inventory() {
                 const ss = stockStatus(product.stock);
                 const SIcon = ss.icon;
                 const isEditingStock = editingStockId === product.id;
+                const productId = normalizeProductId(product.id);
+                const pendingStock = pendingActionId === `stock:${productId}`;
+                const pendingFeatured = pendingActionId === `featured:${productId}`;
+                const pendingActive = pendingActionId === `active:${productId}`;
+                const pendingDelete = pendingActionId === `delete:${productId}`;
                 return (
                   <div key={product.id}
                     className={`glass rounded-2xl border transition-all ${
@@ -620,15 +666,16 @@ export default function Inventory() {
                           <div className="flex items-center gap-1">
                             <input type="number" value={stockDraft} onChange={e => setStockDraft(e.target.value)}
                               onKeyDown={e => { if (e.key === "Enter") commitStockEdit(product.id); if (e.key === "Escape") setEditingStockId(null); }}
-                              className="w-16 bg-zinc-900 border border-green-500/50 rounded-lg px-2 py-1 text-[11px] font-black text-center text-white outline-none" autoFocus/>
-                            <button type="button" onClick={() => commitStockEdit(product.id)}
-                              className="text-[9px] font-black text-green-500 border border-green-500/30 px-2 py-1 rounded-lg hover:bg-green-500/10">OK</button>
+                              disabled={pendingStock}
+                              className="w-16 bg-zinc-900 border border-green-500/50 rounded-lg px-2 py-1 text-[11px] font-black text-center text-white outline-none disabled:opacity-50" autoFocus/>
+                            <button type="button" onClick={() => commitStockEdit(product.id)} disabled={pendingStock}
+                              className="text-[9px] font-black text-green-500 border border-green-500/30 px-2 py-1 rounded-lg hover:bg-green-500/10 disabled:opacity-50">{pendingStock ? <Loader2 size={10} className="animate-spin" /> : "OK"}</button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1">
                             <button type="button" 
                               onClick={() => adjustStock(product.id, -1)}
-                              disabled={product.sizes && product.sizes.length > 0}
+                              disabled={(product.sizes && product.sizes.length > 0) || pendingStock}
                               className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-20">
                               <Minus size={10}/>
                             </button>
@@ -643,7 +690,7 @@ export default function Inventory() {
                             </button>
                             <button type="button" 
                               onClick={() => adjustStock(product.id, 1)}
-                              disabled={product.sizes && product.sizes.length > 0}
+                              disabled={(product.sizes && product.sizes.length > 0) || pendingStock}
                               className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-20">
                               <Plus size={10}/>
                             </button>
@@ -658,19 +705,22 @@ export default function Inventory() {
                           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[9px] font-black uppercase tracking-widest">
                           <Edit3 size={10}/>Editar
                         </button>
-                        <button type="button" onClick={() => toggleProductFeatured(product.id)}
+                        <button type="button" onClick={() => toggleProductFeatured(product.id)} disabled={pendingFeatured}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-[9px] font-black uppercase tracking-widest ${
                             product.isFeatured ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30"
                           }`}>
-                          <Star size={10}/>{product.isFeatured ? "Quitar" : "TOP"}
+                          {pendingFeatured ? <Loader2 size={10} className="animate-spin" /> : <Star size={10}/>}
+                          {product.isFeatured ? "Quitar" : "TOP"}
                         </button>
-                        <button type="button" onClick={() => toggleProductActive(product.id)}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[9px] font-black uppercase tracking-widest">
-                          {product.active !== false ? <><EyeOff size={10}/>Ocultar</> : <><Eye size={10}/>Activar</>}
+                        <button type="button" onClick={() => toggleProductActive(product.id)} disabled={pendingActive}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[9px] font-black uppercase tracking-widest disabled:opacity-50">
+                          {pendingActive ? <Loader2 size={10} className="animate-spin" /> : product.active !== false ? <EyeOff size={10}/> : <Eye size={10}/>}
+                          {product.active !== false ? "Ocultar" : "Activar"}
                         </button>
-                        <button type="button" onClick={() => deleteProduct(product)}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-600 hover:text-red-400 hover:border-red-500/30 transition-all text-[9px] font-black uppercase tracking-widest">
-                          <Trash2 size={10}/>Eliminar
+                        <button type="button" onClick={() => deleteProduct(product)} disabled={pendingDelete}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-600 hover:text-red-400 hover:border-red-500/30 transition-all text-[9px] font-black uppercase tracking-widest disabled:opacity-50">
+                          {pendingDelete ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10}/>}
+                          {pendingDelete ? "Eliminando" : "Eliminar"}
                         </button>
                       </div>
                     </div>
@@ -704,8 +754,8 @@ export default function Inventory() {
               {categoryError ? (
                 <p className="text-[11px] font-bold text-red-400">{categoryError}</p>
               ) : null}
-              <button type="button" onClick={handleRenameCategory} className="w-full bg-green-500 text-black py-3 mt-2 rounded-xl font-black text-[10px] uppercase italic hover:bg-white transition-colors">
-                Renombrar Categoría
+              <button type="button" onClick={handleRenameCategory} disabled={pendingActionId === "category:rename"} className="w-full bg-green-500 text-black py-3 mt-2 rounded-xl font-black text-[10px] uppercase italic hover:bg-white transition-colors disabled:opacity-50">
+                {pendingActionId === "category:rename" ? "Guardando..." : "Renombrar Categoría"}
               </button>
             </div>
 
@@ -720,8 +770,8 @@ export default function Inventory() {
                   className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-xs uppercase text-white outline-none focus:border-green-500"
                   placeholder="Nueva subcategoría..."
                 />
-                <button type="button" onClick={handleAddSubcat} className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 rounded-xl text-[10px] font-black uppercase transition-colors">
-                  Añadir
+                <button type="button" onClick={handleAddSubcat} disabled={pendingActionId === "category:subcat"} className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-50">
+                  {pendingActionId === "category:subcat" ? <Loader2 size={12} className="animate-spin" /> : "Añadir"}
                 </button>
               </div>
 
@@ -732,8 +782,8 @@ export default function Inventory() {
                   editingCategoryObj.subcategories.map(subcat => (
                     <div key={subcat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
                       <span className="text-[10px] font-black text-white uppercase tracking-wider">{subcat}</span>
-                      <button type="button" onClick={() => handleRemoveSubcat(subcat)} className="text-zinc-500 hover:text-red-400">
-                        <Trash2 size={12} />
+                      <button type="button" onClick={() => handleRemoveSubcat(subcat)} disabled={pendingActionId === `category:subcat:${subcat}`} className="text-zinc-500 hover:text-red-400 disabled:opacity-50">
+                        {pendingActionId === `category:subcat:${subcat}` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                       </button>
                     </div>
                   ))
@@ -781,8 +831,8 @@ export default function Inventory() {
             {categoryError ? (
               <p className="text-[11px] font-bold text-red-400">{categoryError}</p>
             ) : null}
-            <button type="button" onClick={handleConfirmDeleteCategory} disabled={productsInDeleteCategory.length > 0 && deleteCategoryCandidates.length === 0} className="w-full bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black uppercase italic hover:bg-red-400 transition-colors">
-              Confirmar eliminacion
+            <button type="button" onClick={handleConfirmDeleteCategory} disabled={pendingActionId === "category:delete" || (productsInDeleteCategory.length > 0 && deleteCategoryCandidates.length === 0)} className="w-full bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black uppercase italic hover:bg-red-400 transition-colors">
+              {pendingActionId === "category:delete" ? "Eliminando..." : "Confirmar eliminacion"}
             </button>
           </div>
         </SimpleModal>

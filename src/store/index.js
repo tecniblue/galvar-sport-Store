@@ -192,14 +192,18 @@ const debouncedPersist = {
 export const useUIStore = create((set, get) => ({
   isBootstrapping: true,
   setIsBootstrapping: (val) => set({ isBootstrapping: val }),
-  toast: { show: false, msg: "" },
+  toast: { show: false, msg: "", type: "info" },
   toastTimer: null,
-  showNotification: (msg) => {
+  showToast: (msg, type = "info") => {
     const { toastTimer } = get();
     if (toastTimer) clearTimeout(toastTimer);
-    const newTimer = setTimeout(() => set({ toast: { show: false, msg: "" } }), 3000);
-    set({ toast: { show: true, msg }, toastTimer: newTimer });
-  }
+    const newTimer = setTimeout(() => set({ toast: { show: false, msg: "", type } }), 3000);
+    set({ toast: { show: true, msg, type }, toastTimer: newTimer });
+  },
+  showNotification: (msg) => get().showToast(msg, "success"),
+  showSuccess: (msg) => get().showToast(msg, "success"),
+  showError: (msg) => get().showToast(msg, "error"),
+  showInfo: (msg) => get().showToast(msg, "info"),
 }));
 
 export const useAuthStore = create((set) => ({

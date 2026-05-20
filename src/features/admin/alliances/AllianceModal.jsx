@@ -2,16 +2,20 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { X, Upload, Trash2 } from "lucide-react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { createAlliance, updateAlliance } from "../../../services/api";
+import { BlockingOverlay, LoadingButton } from "../../../components/ui";
 
 export default function AllianceModal({ isOpen, onClose, editingItem }) {
   const setAlliances = useCatalogStore(state => state.setAlliances);
   const showNotification = useUIStore(state => state.showNotification);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
   const isEditing = !!editingItem;
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     nombre: "", tag: "", ubicacion: "", direccion: "", email: "", telefono: "", horario: "", dias: "", status: "partner", descripcion: "", imagen: "", instagram: "", website: ""
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,6 +45,7 @@ export default function AllianceModal({ isOpen, onClose, editingItem }) {
     if (!formData.nombre.trim()) return showNotification("Nombre requerido");
 
     try {
+      setIsSaving(true);
       const allianceToSave = {
         ...formData,
         id: isEditing ? editingItem.id : (formData.id || Date.now().toString())
@@ -56,16 +61,20 @@ export default function AllianceModal({ isOpen, onClose, editingItem }) {
         if (isEditing) return prev.map(p => p.id === editingItem.id ? allianceToSave : p);
         return [...prev, allianceToSave];
       });
+      showSuccess("Cambios guardados");
       onClose();
     } catch (error) {
       console.error("Error saving alliance:", error);
-      showNotification("Error al guardar la alianza");
+      showError("Error al guardar la alianza");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <BlockingOverlay show={isSaving} message="Guardando alianza..." />
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <h3 className="text-xl font-black italic uppercase text-white">{isEditing ? "Editar Alianza" : "Nueva Alianza"}</h3>
           <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
@@ -131,7 +140,9 @@ export default function AllianceModal({ isOpen, onClose, editingItem }) {
         </div>
         <div className="p-6 border-t border-zinc-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 rounded-xl text-zinc-400 font-black uppercase text-xs">Cancelar</button>
-          <button onClick={handleSubmit} className="px-6 py-3 rounded-xl bg-green-500 text-black font-black uppercase text-xs">Guardar</button>
+          <LoadingButton onClick={handleSubmit} loading={isSaving} loadingText="Guardando..." className="px-6 py-3 rounded-xl bg-green-500 text-black font-black uppercase text-xs flex items-center gap-2">
+            <span>Guardar</span>
+          </LoadingButton>
         </div>
       </div>
     </div>

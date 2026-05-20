@@ -7,12 +7,12 @@ import {
   ShieldCheck,
   ShoppingBag,
 } from "lucide-react";
-import { useCatalogStore, useCartStore } from "../store";
+import { useCatalogStore, useCartStore, useUIStore } from "../store";
 import { saveOrder, createMercadoPagoPreference, processMercadoPagoPayment } from "../services/api";
 import { MercadoPagoBrick } from "../features/checkout/components/MercadoPagoBrick";
 
 import { digitsOnly, formatRut, createClientOrderId } from "../features/checkout/utils/checkout.utils";
-import { CHECKOUT_STEPS, CheckoutProcessingOverlay } from "../features/checkout/components/CheckoutProcessingOverlay";
+import { CHECKOUT_STEPS, MP_CHECKOUT_STEPS, CheckoutProcessingOverlay } from "../features/checkout/components/CheckoutProcessingOverlay";
 import { ClientForm } from "../features/checkout/components/ClientForm";
 import { ShippingForm } from "../features/checkout/components/ShippingForm";
 import { DeliveryMethods } from "../features/checkout/components/DeliveryMethods";
@@ -51,6 +51,9 @@ export default function CheckoutPage() {
   const products = useCatalogStore(state => state.products);
   const checkoutPrefs = useCartStore(state => state.checkoutPrefs);
   const setCheckoutPrefs = useCartStore(state => state.setCheckoutPrefs);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
+  const showInfo = useUIStore(state => state.showInfo);
 
   const formatCLP = useCallback((value) => {
     const num = typeof value === "number" ? value : Number(value);
@@ -95,6 +98,8 @@ export default function CheckoutPage() {
   const [checkoutStep, setCheckoutStep] = useState(CHECKOUT_STEPS[0]);
   const [checkoutError, setCheckoutError] = useState("");
   const [showMPBrick, setShowMPBrick] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [mpStep, setMpStep] = useState(MP_CHECKOUT_STEPS[0]);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [preferenceId, setPreferenceId] = useState(null);
   const submitLockRef = useRef(false);
@@ -311,6 +316,7 @@ export default function CheckoutPage() {
           setPreferenceId(preference.id);
           setCurrentOrder(preference.order);
           setShowMPBrick(true);
+          showInfo("Formulario de pago listo");
         } else {
           throw new Error("No se pudo iniciar el pago con Mercado Pago");
         }
@@ -334,6 +340,7 @@ export default function CheckoutPage() {
 
       setCheckoutStep(CHECKOUT_STEPS[2]);
       await new Promise((resolve) => setTimeout(resolve, 350));
+      showSuccess("Pedido creado");
       finalizeOrder(saved?.id, saved?.order_number, saved?.emailResult);
     } catch (error) {
       console.error("Checkout failed", error);
@@ -341,6 +348,7 @@ export default function CheckoutPage() {
       setCheckoutError(
         error?.message || "No pudimos finalizar tu compra. Intentalo nuevamente.",
       );
+      showError(error?.message || "No pudimos finalizar tu compra.");
       setIsPaying(false);
       submitLockRef.current = false;
     }
@@ -350,6 +358,7 @@ export default function CheckoutPage() {
   return (
     <div className="pt-28 sm:pt-32 md:pt-36 container mx-auto px-6 pb-20 md:pb-24">
       {isPaying ? <CheckoutProcessingOverlay message={checkoutStep} /> : null}
+      {isProcessingPayment ? <CheckoutProcessingOverlay message={mpStep} steps={MP_CHECKOUT_STEPS} /> : null}
       <div className="flex items-center justify-between gap-6 mb-10 md:mb-14">
         <div className="text-left">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter leading-none text-white">
@@ -407,6 +416,9 @@ export default function CheckoutPage() {
                   payerEmail={email}
                   onSubmit={async (paymentData) => {
                     try {
+                      setCheckoutError("");
+                      setIsProcessingPayment(true);
+                      setMpStep(MP_CHECKOUT_STEPS[1]);
                       if (paymentData.selected_payment_method === "wallet_purchase") {
                         setCheckoutError(
                           "Se abrió Mercado Pago en otra pestaña. Completa el pago allí y vuelve a la tienda desde Mercado Pago.",
@@ -415,19 +427,26 @@ export default function CheckoutPage() {
                       }
 
                       const result = await processMercadoPagoPayment(paymentData);
+                      setMpStep(MP_CHECKOUT_STEPS[2]);
                       if (result.status === "approved" || result.status === "in_process" || result.status === "pending") {
                         const finalStatus = result.status === "approved" ? "confirmed" : "pending";
+                        showSuccess(result.status === "approved" ? "Pago aprobado" : "Pago en verificacion");
                         finalizeOrder(currentOrder?.id, currentOrder?.order_number, null, finalStatus);
                       } else {
                         throw new Error(getMercadoPagoStatusMessage(result));
                       }
                     } catch (err) {
                       setCheckoutError(err.message || "Error al procesar el pago");
+                      showError(err.message || "Error al procesar el pago");
                       throw err;
+                    } finally {
+                      setIsProcessingPayment(false);
+                      setMpStep(MP_CHECKOUT_STEPS[0]);
                     }
                   }}
                   onError={() => {
                     setCheckoutError("Error al cargar el formulario de pago.");
+                    showError("Error al cargar Mercado Pago.");
                   }}
                 />
               </div>
@@ -439,6 +458,7 @@ export default function CheckoutPage() {
                 </div>
                 <button
                   onClick={() => setShowMPBrick(false)}
+                  disabled={isProcessingPayment}
                   className="text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2"
                 >
                   <ArrowLeft size={12} /> Cancelar y volver

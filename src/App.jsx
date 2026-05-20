@@ -13,6 +13,7 @@ import AdminPage from './pages/AdminPage';
 import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import InfoPage from './pages/InfoPage';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import { useUIStore } from './store';
 
 function ScrollToTop() {
@@ -33,21 +34,18 @@ function App() {
 
   if (isBootstrapping) {
     return (
-      <div style={{
-        position: 'fixed', inset: 0,
-        background: '#0a0a0a',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column', gap: '16px', zIndex: 9999
-      }}>
-        <div style={{
-          width: '48px', height: '48px',
-          border: '3px solid #333',
-          borderTop: '3px solid #e53e3e',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite'
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <span style={{ color: '#666', fontSize: '14px', letterSpacing: '0.05em' }}>Cargando...</span>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black px-6">
+        <div className="w-full max-w-sm rounded-[2rem] border border-green-500/20 bg-zinc-950 p-8 text-center shadow-2xl shadow-green-500/10">
+          <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-green-500 text-black shadow-lg shadow-green-500/20">
+            <Loader2 size={30} className="animate-spin" />
+          </div>
+          <div className="flex items-center justify-center gap-2 text-green-400">
+            <ShieldCheck size={16} />
+            <span className="text-[10px] font-black uppercase tracking-[0.28em]">Galvar Sport</span>
+          </div>
+          <p className="mt-3 text-lg font-black uppercase text-white">Cargando tienda...</p>
+          <p className="mt-2 text-xs font-bold text-zinc-500">Preparando catalogo y seguridad de la sesion.</p>
+      </div>
       </div>
     );
   }

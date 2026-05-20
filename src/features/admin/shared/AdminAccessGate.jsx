@@ -1,9 +1,12 @@
 import React, { useState } from "react";
-import { useAuthStore } from "../../../store";
+import { useAuthStore, useUIStore } from "../../../store";
+import { LoadingButton } from "../../../components/ui";
 
 export default function AdminAccessGate({ children }) {
   const isAdmin = useAuthStore(state => state.isAdmin);
   const loginAdmin = useAuthStore(state => state.loginAdmin);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,8 +20,11 @@ export default function AdminAccessGate({ children }) {
       setLoading(true);
       setError("");
       await loginAdmin(email, password);
+      showSuccess("Acceso correcto");
     } catch (err) {
-      setError(err.message || "Credenciales invalidas");
+      const msg = err.message || "Credenciales invalidas";
+      setError(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -36,6 +42,7 @@ export default function AdminAccessGate({ children }) {
             placeholder="Correo Electronico"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
             className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none focus:border-green-500"
             required
           />
@@ -44,18 +51,20 @@ export default function AdminAccessGate({ children }) {
             placeholder="Contrasena"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
             className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none focus:border-green-500"
             required
           />
         </div>
         {error ? <p className="text-xs font-bold text-red-500 text-center">{error}</p> : null}
-        <button
+        <LoadingButton
           type="submit"
-          disabled={loading}
+          loading={loading}
+          loadingText="Ingresando..."
           className="w-full bg-green-500 text-black py-4 rounded-xl font-black uppercase italic tracking-widest hover:bg-white transition-all disabled:opacity-50"
         >
-          {loading ? "Cargando..." : "Ingresar"}
-        </button>
+          <span>Ingresar</span>
+        </LoadingButton>
       </form>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Upload, Trash2, Tag, Zap } from 'lucide-react';
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { createProduct, updateProduct } from '../../../services/api';
+import { BlockingOverlay, LoadingButton } from '../../../components/ui';
 
 const buildStableProductId = (sku, name) => {
   const source = String(sku || name || Date.now()).trim();
@@ -16,6 +17,8 @@ const normalizeProductKey = (value) => String(value ?? "").trim().toLowerCase();
 
 export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
   const setProducts = useCatalogStore(state => state.setProducts);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
   const categories = useCatalogStore(state => state.categories);
   const fileInputRef = useRef(null);
 
@@ -222,10 +225,11 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
         });
         return [...next, savedProduct];
       });
+      showSuccess("Cambios guardados");
       onClose();
     } catch (error) {
       console.error("Error saving product:", error);
-      alert("Error al guardar el producto.");
+      showError("Error al guardar el producto");
     } finally {
       setIsSaving(false);
     }
@@ -271,9 +275,10 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
       aria-modal="true"
     >
       <div
-        className="bg-[#0a0a0a] border border-zinc-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col my-auto"
+        className="relative bg-[#0a0a0a] border border-zinc-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col my-auto"
         onClick={(e) => e.stopPropagation()}
       >
+        <BlockingOverlay show={isSaving} message="Guardando producto..." />
         <div className="p-8 flex justify-between items-center">
           <h2 className="text-2xl font-black uppercase text-white italic">Gestionar <span className="text-green-500">Producto</span></h2>
           <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white"><X /></button>
@@ -564,9 +569,9 @@ export default function AdminProductModal({ isOpen, onClose, editingProduct }) {
               )}
             </div>
 
-            <button type="button" onClick={handleSave} disabled={isSaving} className="w-full bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-black py-4 rounded-2xl font-black uppercase italic shadow-xl shadow-green-500/20 hover:bg-white transition-colors">
-              {isSaving ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
-            </button>
+            <LoadingButton type="button" onClick={handleSave} loading={isSaving} loadingText="Guardando..." className="w-full bg-green-500 text-black py-4 rounded-2xl font-black uppercase italic shadow-xl shadow-green-500/20 hover:bg-white transition-colors flex items-center justify-center gap-3">
+              <span>GUARDAR CAMBIOS</span>
+            </LoadingButton>
           </div>
         </div>
       </div>

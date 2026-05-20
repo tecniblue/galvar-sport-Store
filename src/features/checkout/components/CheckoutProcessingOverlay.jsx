@@ -7,7 +7,13 @@ export const CHECKOUT_STEPS = [
   "Finalizando pedido...",
 ];
 
-export function CheckoutProcessingOverlay({ message }) {
+export const MP_CHECKOUT_STEPS = [
+  "Preparando pago...",
+  "Procesando pago...",
+  "Estamos verificando tu pago...",
+];
+
+export function CheckoutProcessingOverlay({ message, steps = CHECKOUT_STEPS }) {
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/75 backdrop-blur-md px-6">
       <div className="w-full max-w-md rounded-[2rem] border border-green-500/25 bg-zinc-950/95 p-7 shadow-2xl shadow-green-500/10">
@@ -27,9 +33,9 @@ export function CheckoutProcessingOverlay({ message }) {
         </div>
 
         <div className="mt-6 space-y-3">
-          {CHECKOUT_STEPS.map((step, index) => {
+          {steps.map((step, index) => {
             const active = step === message;
-            const done = CHECKOUT_STEPS.indexOf(message) > index;
+            const done = steps.indexOf(message) > index;
             return (
               <div
                 key={step}

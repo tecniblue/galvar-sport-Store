@@ -1,14 +1,16 @@
 import React, { useContext, useState } from "react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
-import { Zap, Save, Plus, Trash2, Calendar, Tag, DollarSign } from "lucide-react";
+import { Zap, Save, Plus, Trash2, Calendar, Tag, DollarSign, Loader2 } from "lucide-react";
 import { updateProduct } from "../../../services/api";
 
 export default function OffersManager() {
   const products = useCatalogStore(state => state.products);
   const setProducts = useCatalogStore(state => state.setProducts);
   const showNotification = useUIStore(state => state.showNotification);
+  const showError = useUIStore(state => state.showError);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);
+  const [pendingId, setPendingId] = useState(null);
 
   const weeklyOffers = products.filter(p => p.isWeeklyOffer);
   const nonOffers = products.filter(p => !p.isWeeklyOffer);
@@ -16,10 +18,12 @@ export default function OffersManager() {
   const handleToggleOffer = async (product) => {
     const nextProduct = { ...product, isWeeklyOffer: !product.isWeeklyOffer, offerOrder: product.offerOrder || 0 };
     try {
+      setPendingId(`toggle:${product.id}`);
       await updateProduct(product.id, nextProduct);
       setProducts(prev => prev.map(p => p.id === product.id ? nextProduct : p));
       showNotification(product.isWeeklyOffer ? "Oferta eliminada" : "Producto añadido a ofertas");
-    } catch(e) { console.error(e); alert("Error"); }
+    } catch(e) { console.error(e); showError("Error al actualizar oferta"); }
+    finally { setPendingId(null); }
   };
 
   const startEdit = (product) => {
@@ -34,12 +38,14 @@ export default function OffersManager() {
 
   const saveEdit = async () => {
     try {
+      setPendingId(`save:${draft.id}`);
       await updateProduct(draft.id, draft);
       setProducts(prev => prev.map(p => p.id === draft.id ? draft : p));
       setEditingId(null);
       setDraft(null);
       showNotification("Oferta actualizada correctamente");
-    } catch(e) { console.error(e); alert("Error"); }
+    } catch(e) { console.error(e); showError("Error al guardar oferta"); }
+    finally { setPendingId(null); }
   };
 
   const handleChange = (field, value) => {
@@ -226,9 +232,10 @@ export default function OffersManager() {
                             <>
                               <button 
                                 onClick={saveEdit}
+                                disabled={pendingId === `save:${p.id}`}
                                 className="p-2 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500 hover:text-black transition-all"
                               >
-                                <Save size={16} />
+                                {pendingId === `save:${p.id}` ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                               </button>
                               <button 
                                 onClick={cancelEdit}
@@ -247,9 +254,10 @@ export default function OffersManager() {
                               </button>
                               <button 
                                 onClick={() => handleToggleOffer(p)}
+                                disabled={pendingId === `toggle:${p.id}`}
                                 className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-black transition-all"
                               >
-                                <Trash2 size={16} />
+                                {pendingId === `toggle:${p.id}` ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                               </button>
                             </>
                           )}
@@ -285,9 +293,10 @@ export default function OffersManager() {
               </div>
               <button 
                 onClick={() => handleToggleOffer(p)}
+                disabled={pendingId === `toggle:${p.id}`}
                 className="w-8 h-8 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center hover:bg-green-500 hover:text-black transition-all"
               >
-                <Plus size={14} />
+                {pendingId === `toggle:${p.id}` ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               </button>
             </div>
           ))}

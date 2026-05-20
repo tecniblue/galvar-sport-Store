@@ -2,16 +2,20 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { X, Upload, Trash2 } from "lucide-react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { createFighter, updateFighter } from "../../../services/api";
+import { BlockingOverlay, LoadingButton } from "../../../components/ui";
 
 export default function FighterModal({ isOpen, onClose, editingItem }) {
   const setFighters = useCatalogStore(state => state.setFighters);
   const showNotification = useUIStore(state => state.showNotification);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
   const isEditing = !!editingItem;
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: "", title: "", specialty: "", weight: "", level: "AMATEUR", record: "", handle: "", image: ""
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,6 +45,7 @@ export default function FighterModal({ isOpen, onClose, editingItem }) {
     if (!formData.name.trim()) return showNotification("Nombre requerido");
 
     try {
+      setIsSaving(true);
       const fighterToSave = {
         ...formData,
         id: isEditing ? editingItem.id : (formData.id || Date.now().toString())
@@ -56,16 +61,20 @@ export default function FighterModal({ isOpen, onClose, editingItem }) {
         if (isEditing) return prev.map(p => p.id === editingItem.id ? fighterToSave : p);
         return [...prev, fighterToSave];
       });
+      showSuccess("Cambios guardados");
       onClose();
     } catch (error) {
       console.error("Error saving fighter:", error);
-      showNotification("Error al guardar el guerrero");
+      showError("Error al guardar el guerrero");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <BlockingOverlay show={isSaving} message="Guardando guerrero..." />
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <h3 className="text-xl font-black italic uppercase text-white">{isEditing ? "Editar Guerrero" : "Nuevo Guerrero"}</h3>
           <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
@@ -119,7 +128,9 @@ export default function FighterModal({ isOpen, onClose, editingItem }) {
         </div>
         <div className="p-6 border-t border-zinc-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 rounded-xl text-zinc-400 font-black uppercase text-xs">Cancelar</button>
-          <button onClick={handleSubmit} className="px-6 py-3 rounded-xl bg-green-500 text-black font-black uppercase text-xs">Guardar</button>
+          <LoadingButton onClick={handleSubmit} loading={isSaving} loadingText="Guardando..." className="px-6 py-3 rounded-xl bg-green-500 text-black font-black uppercase text-xs flex items-center gap-2">
+            <span>Guardar</span>
+          </LoadingButton>
         </div>
       </div>
     </div>

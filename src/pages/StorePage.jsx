@@ -2,6 +2,7 @@ import React, { useContext, useMemo, useState, useCallback } from "react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../store";
 import { Search, Filter } from "lucide-react";
 import { ProductCard, ProductDetailsModal } from "../components/product";
+import { SkeletonBlock } from "../components/ui";
 
 const formatCLP = (value) => {
   const num = Number(value);
@@ -185,7 +186,17 @@ export default function StorePage() {
       </div>
 
       {/* ── Product Grid ── */}
-      {filtered.length === 0 ? (
+      {!hasCatalog && !hasFilters ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="space-y-4">
+              <SkeletonBlock className="aspect-[4/5]" />
+              <SkeletonBlock className="h-5" />
+              <SkeletonBlock className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="py-16 md:py-20 text-center glass rounded-[3rem] border border-zinc-900 px-8">
           <p className="text-2xl font-black uppercase tracking-[0.22em] text-white">
             {hasCatalog

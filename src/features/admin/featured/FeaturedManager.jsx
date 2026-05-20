@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useMemo, useRef, useState } from "react";
 import {
   Star, StarOff, ArrowUp, ArrowDown,
-  Sparkles, Info, GripVertical, Save, CheckCircle2,
+  Sparkles, Info, GripVertical, Save, CheckCircle2, Loader2,
 } from "lucide-react";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import { updateProduct } from "../../../services/api";
@@ -35,10 +35,14 @@ function rebuildFeaturedOrders(products, orderedFeaturedIds) {
 export default function FeaturedManager({ embedded = false }) {
   const products = useCatalogStore(state => state.products);
   const setProducts = useCatalogStore(state => state.setProducts);
+  const showSuccess = useUIStore(state => state.showSuccess);
+  const showError = useUIStore(state => state.showError);
 
   // Local draft order — array of product IDs in current display order
   const [localOrder, setLocalOrder] = useState(null); // null = in sync with context
   const [saved, setSaved] = useState(false);
+  const [pendingId, setPendingId] = useState(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const saveTimerRef = useRef(null);
 
   // Featured products sorted by featuredOrder (persisted field)
@@ -94,6 +98,7 @@ export default function FeaturedManager({ embedded = false }) {
     };
 
     try {
+      setPendingId(id);
       await updateProduct(id, updatedProduct);
       
       // Update local state
@@ -106,7 +111,9 @@ export default function FeaturedManager({ embedded = false }) {
           return idx >= 0 ? { ...p, featuredOrder: idx } : { ...p, featuredOrder: null };
         });
       });
-    } catch(e) { console.error(e); alert("Error"); }
+      showSuccess("Destacado actualizado");
+    } catch(e) { console.error(e); showError("Error al actualizar destacado"); }
+    finally { setPendingId(null); }
   };
 
   const moveFeatured = (id, dir) => {
@@ -136,6 +143,7 @@ export default function FeaturedManager({ embedded = false }) {
     });
 
     try {
+      setIsSavingOrder(true);
       // Execute in parallel
       await Promise.all(changedProducts.map(p => updateProduct(p.id, p)));
       
@@ -144,8 +152,10 @@ export default function FeaturedManager({ embedded = false }) {
       setSaved(true);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => setSaved(false), 2500);
-    } catch(e) { console.error(e); alert("Error guardando orden"); }
-  }, [localOrder, setProducts, products]);
+      showSuccess("Orden guardado");
+    } catch(e) { console.error(e); showError("Error guardando orden"); }
+    finally { setIsSavingOrder(false); }
+  }, [localOrder, setProducts, products, showSuccess, showError]);
 
   // Drag-and-drop — only updates local draft
   const dragId = useRef(null);
@@ -257,7 +267,7 @@ export default function FeaturedManager({ embedded = false }) {
             <button
               type="button"
               onClick={savePositions}
-              disabled={!isDirty}
+              disabled={!isDirty || isSavingOrder}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 isDirty
                   ? "bg-green-500 border-green-400 text-black hover:bg-white hover:border-white shadow-lg shadow-green-500/20"
@@ -265,8 +275,8 @@ export default function FeaturedManager({ embedded = false }) {
               }`}
               title="Guardar orden actual"
             >
-              <Save size={11} />
-              Guardar posiciones
+              {isSavingOrder ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+              {isSavingOrder ? "Guardando..." : "Guardar posiciones"}
             </button>
           </div>
         </div>
@@ -367,11 +377,12 @@ export default function FeaturedManager({ embedded = false }) {
                   <button
                     type="button"
                     onClick={() => toggle(p.id)}
+                    disabled={pendingId === p.id}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/10 transition-all text-[9px] font-black uppercase tracking-widest ml-1"
                     title="Quitar del Home"
                   >
-                    <StarOff size={10} />
-                    Quitar
+                    {pendingId === p.id ? <Loader2 size={10} className="animate-spin" /> : <StarOff size={10} />}
+                    {pendingId === p.id ? "Quitando" : "Quitar"}
                   </button>
                 </div>
               </div>
