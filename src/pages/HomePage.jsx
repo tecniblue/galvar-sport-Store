@@ -351,8 +351,11 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-black/40 pointer-events-none z-10" />
 
               {/* Elementos decorativos encima del mapa (pointer-events-none para permitir interactuar con el mapa) */}
-              <div className="relative z-20 pointer-events-none flex flex-col items-center justify-center p-20 w-full h-full">
-                <MapPin size={80} className="text-green-500 animate-bounce drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
+              <div className="relative z-20 pointer-events-none w-full h-full">
+                <MapPin
+                  size={72}
+                  className="absolute right-6 top-6 md:right-8 md:top-8 text-green-500 animate-bounce drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]"
+                />
                 <div className="absolute bottom-6 text-[6rem] md:text-[8rem] font-black italic text-white/10 select-none tracking-widest">
                   ANFA
                 </div>
