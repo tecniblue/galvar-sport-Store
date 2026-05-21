@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useCatalogStore, useCartStore } from "../store";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard, ProductDetailsModal } from "../components/product";
 import { SkeletonBlock } from "../components/ui";
 
@@ -263,23 +263,28 @@ export default function StorePage() {
 
           {shouldShowPagination && (
             <nav
-              className="mt-12 md:mt-16 rounded-3xl border border-zinc-800 bg-zinc-950/80 px-4 py-4 shadow-2xl shadow-black/30"
+              className="mt-12 md:mt-16 flex flex-col items-center gap-4"
               aria-label="Paginación de productos"
             >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 lg:text-left">
-                  Mostrando {showingStart}-{showingEnd} de {filtered.length} productos
-                </p>
+              <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                Mostrando {showingStart}-{showingEnd} de {filtered.length} productos
+              </p>
 
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPage(activePage - 1)}
-                    disabled={activePage === 1}
-                    className="flex-shrink-0 rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all hover:border-green-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-zinc-800 disabled:hover:text-zinc-300"
-                  >
-                    Anterior
-                  </button>
+              <div className="w-full overflow-x-auto no-scrollbar pb-1">
+                <div className="mx-auto flex w-max items-end justify-center gap-2 px-2">
+                  <div className="flex w-16 flex-shrink-0 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPage(activePage - 1)}
+                      disabled={activePage === 1}
+                      className="group flex flex-col items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-colors hover:text-green-400 focus:outline-none focus:text-green-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
+                    >
+                      <span className="grid h-10 w-10 place-items-center rounded-full border border-transparent transition-all group-hover:border-green-500/40 group-hover:bg-green-500/10 group-focus:border-green-500/40 group-focus:bg-green-500/10">
+                        <ChevronLeft size={18} />
+                      </span>
+                      <span>Anterior</span>
+                    </button>
+                  </div>
 
                   {pageNumbers.map((page) => {
                     const isActivePage = activePage === page;
@@ -289,27 +294,49 @@ export default function StorePage() {
                         type="button"
                         onClick={() => handleSelectPage(page)}
                         aria-current={isActivePage ? "page" : undefined}
+                        aria-label={`Página ${page}`}
                         className={`
-                          flex-shrink-0 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50
+                          flex h-14 w-10 flex-shrink-0 flex-col items-center justify-end gap-2 text-sm font-black transition-colors focus:outline-none
                           ${isActivePage
-                            ? "border-green-500 bg-green-500 text-black shadow-[0_0_18px_rgba(34,197,94,0.35)]"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white"
+                            ? "text-green-400"
+                            : "text-zinc-500 hover:text-zinc-200 focus:text-zinc-200"
                           }
                         `}
                       >
-                        Página {page}
+                        <span
+                          className={`
+                            grid h-9 w-9 place-items-center rounded-full border transition-all
+                            ${isActivePage
+                              ? "border-green-500 bg-green-500 text-black shadow-[0_0_18px_rgba(34,197,94,0.35)]"
+                              : "border-transparent bg-transparent hover:border-zinc-700 hover:bg-zinc-900"
+                            }
+                          `}
+                        >
+                          {page}
+                        </span>
+                        <span
+                          className={`
+                            h-1 w-6 rounded-full transition-all
+                            ${isActivePage ? "bg-green-500" : "bg-transparent"}
+                          `}
+                        />
                       </button>
                     );
                   })}
 
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPage(activePage + 1)}
-                    disabled={activePage === totalPages}
-                    className="flex-shrink-0 rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all hover:border-green-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-zinc-800 disabled:hover:text-zinc-300"
-                  >
-                    Siguiente
-                  </button>
+                  <div className="flex w-16 flex-shrink-0 justify-start">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPage(activePage + 1)}
+                      disabled={activePage === totalPages}
+                      className="group flex flex-col items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-colors hover:text-green-400 focus:outline-none focus:text-green-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
+                    >
+                      <span className="grid h-10 w-10 place-items-center rounded-full border border-transparent transition-all group-hover:border-green-500/40 group-hover:bg-green-500/10 group-focus:border-green-500/40 group-focus:bg-green-500/10">
+                        <ChevronRight size={18} />
+                      </span>
+                      <span>Siguiente</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </nav>
