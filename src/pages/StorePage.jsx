@@ -1,5 +1,5 @@
-import React, { useContext, useMemo, useState, useCallback } from "react";
-import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../store";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { useCatalogStore, useCartStore } from "../store";
 import { Search, Filter } from "lucide-react";
 import { ProductCard, ProductDetailsModal } from "../components/product";
 import { SkeletonBlock } from "../components/ui";
@@ -9,6 +9,8 @@ const formatCLP = (value) => {
   return Number.isFinite(num) ? num.toLocaleString("es-CL") : "0";
 };
 
+const PRODUCTS_PER_PAGE = 20;
+
 export default function StorePage() {
   const products = useCatalogStore(state => state.products);
   const categories = useCatalogStore(state => state.categories);
@@ -17,6 +19,7 @@ export default function StorePage() {
   const [activeCat, setActiveCat] = useState("Todos");
   const [activeSubcat, setActiveSubcat] = useState("Todos");
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const searchText = search.trim().toLowerCase();
 
@@ -33,6 +36,25 @@ export default function StorePage() {
     });
     return result;
   }, [activeCat, activeSubcat, products, searchText]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCat, activeSubcat, searchText]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const activePage = Math.min(currentPage, totalPages);
+  const paginationStartIndex = (activePage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = filtered.slice(
+    paginationStartIndex,
+    paginationStartIndex + PRODUCTS_PER_PAGE
+  );
+  const showingStart = filtered.length === 0 ? 0 : paginationStartIndex + 1;
+  const showingEnd = Math.min(paginationStartIndex + paginatedProducts.length, filtered.length);
+  const shouldShowPagination = filtered.length > PRODUCTS_PER_PAGE;
+  const pageNumbers = useMemo(
+    () => Array.from({ length: totalPages }, (_, index) => index + 1),
+    [totalPages]
+  );
 
   const handleAddToCart = useCallback((cardProduct) => {
     const original = products.find(p => p.id === cardProduct.id);
@@ -60,6 +82,13 @@ export default function StorePage() {
   const handleSelectCat = (catName) => {
     setActiveCat(catName);
     setActiveSubcat("Todos");
+  };
+
+  const handleSelectPage = (page) => {
+    const nextPage = Math.min(Math.max(page, 1), totalPages);
+    if (nextPage === activePage) return;
+    setCurrentPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -213,23 +242,79 @@ export default function StorePage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {filtered.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={{
-                ...product,
-                category: product.cat,
-                specialty: product.variant,
-                price: `$${formatCLP(product.price)}`,
-                image: product.images?.[0] || "",
-              }}
-              variant="store"
-              onAddToCart={handleAddToCart}
-              onViewDetails={handleViewDetails}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {paginatedProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={{
+                  ...product,
+                  category: product.cat,
+                  specialty: product.variant,
+                  price: `$${formatCLP(product.price)}`,
+                  image: product.images?.[0] || "",
+                }}
+                variant="store"
+                onAddToCart={handleAddToCart}
+                onViewDetails={handleViewDetails}
+              />
+            ))}
+          </div>
+
+          {shouldShowPagination && (
+            <nav
+              className="mt-12 md:mt-16 rounded-3xl border border-zinc-800 bg-zinc-950/80 px-4 py-4 shadow-2xl shadow-black/30"
+              aria-label="Paginación de productos"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 lg:text-left">
+                  Mostrando {showingStart}-{showingEnd} de {filtered.length} productos
+                </p>
+
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPage(activePage - 1)}
+                    disabled={activePage === 1}
+                    className="flex-shrink-0 rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all hover:border-green-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-zinc-800 disabled:hover:text-zinc-300"
+                  >
+                    Anterior
+                  </button>
+
+                  {pageNumbers.map((page) => {
+                    const isActivePage = activePage === page;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => handleSelectPage(page)}
+                        aria-current={isActivePage ? "page" : undefined}
+                        className={`
+                          flex-shrink-0 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50
+                          ${isActivePage
+                            ? "border-green-500 bg-green-500 text-black shadow-[0_0_18px_rgba(34,197,94,0.35)]"
+                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white"
+                          }
+                        `}
+                      >
+                        Página {page}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPage(activePage + 1)}
+                    disabled={activePage === totalPages}
+                    className="flex-shrink-0 rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-300 transition-all hover:border-green-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-zinc-800 disabled:hover:text-zinc-300"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </nav>
+          )}
+        </>
       )}
 
       <ProductDetailsModal
