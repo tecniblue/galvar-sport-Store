@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState, lazy, Suspense } from 
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { GalvarHeroLogo } from "../components/brand";
+import { SEO, SITE_URL, DEFAULT_IMAGE } from "../components/seo";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../store";
 
 const FightersCarousel = lazy(() => import("../features/home/components/FightersCarousel/FightersCarousel"));
@@ -242,6 +243,51 @@ export default function HomePage() {
   const products = useCatalogStore(state => state.products);
   const fighters = useCatalogStore(state => state.fighters);
   const alliances = useCatalogStore(state => state.alliances);
+  const homeSchema = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "SportingGoodsStore",
+      name: "Galvar Sport",
+      url: SITE_URL,
+      image: DEFAULT_IMAGE,
+      description:
+        "Tienda especializada en equipamiento profesional para deportes de contacto, entrenamiento, rendimiento y proteccion en Antofagasta, con envios a todo Chile.",
+      email: "ventas@galvarsport.com",
+      telephone: "+56971413309",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "Clodomiro Rozas 965",
+        addressLocality: "Antofagasta",
+        addressCountry: "CL",
+      },
+      areaServed: {
+        "@type": "Country",
+        name: "Chile",
+      },
+      sameAs: ["https://instagram.com/galvarsport"],
+      openingHoursSpecification: [
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: "Monday",
+          opens: "11:00",
+          closes: "19:30",
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["Tuesday", "Wednesday", "Thursday", "Friday"],
+          opens: "11:00",
+          closes: "19:30",
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: "Saturday",
+          opens: "11:00",
+          closes: "16:00",
+        },
+      ],
+    }),
+    [],
+  );
 
   const featuredProducts = useMemo(
     () =>
@@ -259,6 +305,12 @@ export default function HomePage() {
 
   return (
     <div className="overflow-x-hidden">
+      <SEO
+        title="Galvar Sport | Equipamiento deportivo profesional en Chile"
+        description="Compra equipamiento profesional para deportes de contacto, entrenamiento, rendimiento y proteccion. Galvar Sport atiende en Antofagasta y realiza envios a todo Chile."
+        path="/"
+        jsonLd={homeSchema}
+      />
 
       {/* HEADER / HERO */}
       <HeroSection />

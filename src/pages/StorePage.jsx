@@ -3,6 +3,7 @@ import { useCatalogStore, useCartStore } from "../store";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard, ProductDetailsModal } from "../components/product";
 import { SkeletonBlock } from "../components/ui";
+import { SEO, SITE_URL } from "../components/seo";
 
 const formatCLP = (value) => {
   const num = Number(value);
@@ -78,6 +79,41 @@ export default function StorePage() {
 
   const hasCatalog = products.length > 0;
   const hasFilters = Boolean(searchText) || activeCat !== "Todos" || activeSubcat !== "Todos";
+  const storeSchema = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Tienda oficial Galvar Sport",
+      url: `${SITE_URL}/tienda`,
+      description:
+        "Catalogo de equipamiento deportivo profesional para deportes de contacto, entrenamiento y proteccion, disponible en Antofagasta con envios a Chile.",
+      mainEntity: {
+        "@type": "ItemList",
+        itemListElement: filtered.slice(0, 12).map((product, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "Product",
+            name: product.name,
+            category: product.cat,
+            image: product.images?.[0] ? new URL(product.images[0], SITE_URL).toString() : undefined,
+            offers: {
+              "@type": "Offer",
+              priceCurrency: "CLP",
+              price: String(product.price ?? ""),
+              availability:
+                product.active === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+              seller: {
+                "@type": "SportingGoodsStore",
+                name: "Galvar Sport",
+              },
+            },
+          },
+        })),
+      },
+    }),
+    [filtered],
+  );
 
   const handleSelectCat = (catName) => {
     setActiveCat(catName);
@@ -93,6 +129,13 @@ export default function StorePage() {
 
   return (
     <div className="pt-28 sm:pt-32 md:pt-36 container mx-auto px-4 sm:px-6 pb-20 md:pb-24">
+      <SEO
+        title="Tienda oficial de equipamiento deportivo"
+        description="Compra guantes, protecciones, ropa y accesorios para deportes de contacto. Catalogo Galvar Sport disponible en Antofagasta con envios a todo Chile."
+        path="/tienda"
+        jsonLd={storeSchema}
+      />
+
       {/* ── Header ── */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 md:gap-10 mb-10 md:mb-16 text-left">
         <div className="space-y-3">

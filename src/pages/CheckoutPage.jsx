@@ -18,6 +18,7 @@ import { ShippingForm } from "../features/checkout/components/ShippingForm";
 import { DeliveryMethods } from "../features/checkout/components/DeliveryMethods";
 import { PaymentMethods } from "../features/checkout/components/PaymentMethods";
 import { OrderSummary } from "../features/checkout/components/OrderSummary";
+import { SEO } from "../components/seo";
 
 const MERCADO_PAGO_STATUS_MESSAGES = {
   cc_rejected_other_reason:
@@ -357,6 +358,12 @@ export default function CheckoutPage() {
 
   return (
     <div className="pt-28 sm:pt-32 md:pt-36 container mx-auto px-6 pb-20 md:pb-24">
+      <SEO
+        title="Checkout seguro"
+        description="Finaliza tu compra de equipamiento deportivo en Galvar Sport de forma segura."
+        path="/checkout"
+        robots="noindex, nofollow"
+      />
       {isPaying ? <CheckoutProcessingOverlay message={checkoutStep} /> : null}
       {isProcessingPayment ? <CheckoutProcessingOverlay message={mpStep} steps={MP_CHECKOUT_STEPS} /> : null}
       <div className="flex items-center justify-between gap-6 mb-10 md:mb-14">

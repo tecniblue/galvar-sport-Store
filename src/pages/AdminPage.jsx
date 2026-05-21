@@ -7,6 +7,7 @@ import Alliances from "../features/admin/alliances/Alliances";
 import Fighters from "../features/admin/fighters/Fighters";
 import Orders from "../features/admin/orders/Orders";
 import OffersManager from "../features/admin/offers/OffersManager";
+import { SEO } from "../components/seo";
 
 const TABS = [
   { id: "inventario", label: "Inventario", icon: Package },
@@ -20,31 +21,39 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("inventario");
 
   return (
-    <AdminAccessGate>
-      <AdminLayout
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      >
-        <div className="grid lg:grid-cols-3 gap-10">
-          <div className={`${activeTab === "inventario" ? "block" : "hidden"} lg:col-span-3`}>
-            <Inventory />
-          </div>
+    <>
+      <SEO
+        title="Panel administrativo"
+        description="Panel privado de administracion de Galvar Sport."
+        path="/admin"
+        robots="noindex, nofollow"
+      />
+      <AdminAccessGate>
+        <AdminLayout
+          tabs={TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        >
+          <div className="grid lg:grid-cols-3 gap-10">
+            <div className={`${activeTab === "inventario" ? "block" : "hidden"} lg:col-span-3`}>
+              <Inventory />
+            </div>
 
-          <div className={`${activeTab === "alianzas" ? "block" : "hidden"} lg:col-span-3`}>
-            <Alliances />
+            <div className={`${activeTab === "alianzas" ? "block" : "hidden"} lg:col-span-3`}>
+              <Alliances />
+            </div>
+            <div className={`${activeTab === "guerreros" ? "block" : "hidden"} lg:col-span-3`}>
+              <Fighters />
+            </div>
+            <div className={`${activeTab === "ordenes" ? "block" : "hidden"} lg:col-span-3`}>
+              <Orders />
+            </div>
+            <div className={`${activeTab === "ofertas" ? "block" : "hidden"} lg:col-span-3`}>
+              <OffersManager />
+            </div>
           </div>
-          <div className={`${activeTab === "guerreros" ? "block" : "hidden"} lg:col-span-3`}>
-            <Fighters />
-          </div>
-          <div className={`${activeTab === "ordenes" ? "block" : "hidden"} lg:col-span-3`}>
-            <Orders />
-          </div>
-          <div className={`${activeTab === "ofertas" ? "block" : "hidden"} lg:col-span-3`}>
-            <OffersManager />
-          </div>
-        </div>
-      </AdminLayout>
-    </AdminAccessGate>
+        </AdminLayout>
+      </AdminAccessGate>
+    </>
   );
 }

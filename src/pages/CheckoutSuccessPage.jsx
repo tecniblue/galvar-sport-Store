@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { fetchOrderByClient } from "../services/api";
 import { useCartStore } from "../store";
+import { SEO } from "../components/seo";
 
 const formatCLP = (value) => {
   const num = Number(value);
@@ -214,30 +215,41 @@ export default function CheckoutSuccessPage() {
   const isConfirmed = status === "confirmed" || isWhatsApp;
   const isRejected = mpStatus === "rejected" || mpStatus === "failure";
   const showProcessing = isPolling || (mpStatus === "approved" && status === "pending" && !pollingFinished);
+  const seo = (
+    <SEO
+      title="Estado del pedido"
+      description="Estado privado de compra en Galvar Sport."
+      path="/checkout/success"
+      robots="noindex, nofollow"
+    />
+  );
 
   if (isRejected) {
     return (
-      <div className="pt-28 sm:pt-32 md:pt-36 pb-24 container mx-auto px-6">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="glass rounded-[3rem] border border-red-500/20 bg-red-500/[0.03] p-10 md:p-14 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 grid place-items-center mb-6 text-red-500 mx-auto">
-              <XCircle size={32} strokeWidth={1.5} />
-            </div>
-            <h1 className="text-4xl font-black italic uppercase text-white mb-4">Pago Rechazado</h1>
-            <p className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-8">
-              Tu banco o Mercado Pago han rechazado la transacción. No se ha realizado ningún cobro.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button onClick={() => navigate("/checkout")} className="px-8 py-4 bg-green-500 text-black font-black uppercase text-[11px] tracking-widest rounded-2xl hover:bg-white transition-all">
-                Reintentar Pago
-              </button>
-              <button onClick={() => navigate("/tienda")} className="px-8 py-4 bg-zinc-900 border border-zinc-800 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl hover:border-zinc-600 transition-all">
-                Volver a la tienda
-              </button>
+      <>
+        {seo}
+        <div className="pt-28 sm:pt-32 md:pt-36 pb-24 container mx-auto px-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="glass rounded-[3rem] border border-red-500/20 bg-red-500/[0.03] p-10 md:p-14 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 grid place-items-center mb-6 text-red-500 mx-auto">
+                <XCircle size={32} strokeWidth={1.5} />
+              </div>
+              <h1 className="text-4xl font-black italic uppercase text-white mb-4">Pago Rechazado</h1>
+              <p className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-8">
+                Tu banco o Mercado Pago han rechazado la transacción. No se ha realizado ningún cobro.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button onClick={() => navigate("/checkout")} className="px-8 py-4 bg-green-500 text-black font-black uppercase text-[11px] tracking-widest rounded-2xl hover:bg-white transition-all">
+                  Reintentar Pago
+                </button>
+                <button onClick={() => navigate("/tienda")} className="px-8 py-4 bg-zinc-900 border border-zinc-800 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl hover:border-zinc-600 transition-all">
+                  Volver a la tienda
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -266,6 +278,7 @@ export default function CheckoutSuccessPage() {
 
   return (
     <div className="pt-28 sm:pt-32 md:pt-36 pb-24 container mx-auto px-6">
+      {seo}
       <div className="max-w-3xl mx-auto space-y-6">
 
         {/* ── Hero de confirmación ────────────────────────────────── */}

@@ -1,0 +1,1 @@
+export { default as SEO, SITE_NAME, SITE_URL, DEFAULT_DESCRIPTION, DEFAULT_IMAGE } from "./SEO";

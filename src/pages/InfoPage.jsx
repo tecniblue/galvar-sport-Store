@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Truck, RefreshCcw, HelpCircle, ShieldAlert, FileText, ChevronRight } from "lucide-react";
+import { SEO, SITE_URL } from "../components/seo";
 
 const SECTIONS = [
   {
@@ -140,6 +141,22 @@ export default function InfoPage() {
 
   return (
     <div className="pt-28 sm:pt-32 md:pt-36 container mx-auto px-6 pb-20 md:pb-24 min-h-screen flex flex-col">
+      <SEO
+        title={`${activeSection.title} | Centro de ayuda`}
+        description={`Informacion sobre ${activeSection.title.toLowerCase()} de Galvar Sport: compra segura, atencion al cliente y soporte para pedidos en Chile.`}
+        path={`/info/${activeSection.id}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: `${activeSection.title} | Galvar Sport`,
+          url: `${SITE_URL}/info/${activeSection.id}`,
+          isPartOf: {
+            "@type": "WebSite",
+            name: "Galvar Sport",
+            url: SITE_URL,
+          },
+        }}
+      />
       <header className="mb-12 md:mb-16">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter leading-none text-white">
           Centro de <span className="text-green-500">Ayuda</span>
