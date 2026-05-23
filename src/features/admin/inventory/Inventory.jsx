@@ -1,6 +1,6 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Package, Plus, Trash2, Search, Edit3, Star, EyeOff, Eye, AlertTriangle, TrendingDown, CheckCircle2, Minus, Sparkles, Loader2 } from "lucide-react";
-import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
+import { useUIStore, useCatalogStore, useCartStore } from "../../../store";
 import ProductModal from "./ProductModal";
 import { SimpleModal } from "../../../components/ui";
 import FeaturedManager from "../featured/FeaturedManager";
@@ -18,6 +18,7 @@ const EMPTY_LIST = [];
 const normalizeProductId = (id) => String(id ?? "").trim();
 const NOOP = () => {};
 const CATEGORY_SEARCH_ALL = "";
+const PRODUCTS_PER_PAGE = 12;
 
 const syncFeaturedProduct = (product, nextFeatured, currentProducts) => {
   // Find the current max featuredOrder among featured items to append at the end
@@ -75,6 +76,7 @@ export default function Inventory() {
   const [stockDraft, setStockDraft] = useState("");
   const [pendingActionId, setPendingActionId] = useState(null);
   const [subcatDraft, setSubcatDraft] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const editingCategoryObj = useMemo(
     () => customCategories.find(c => c?.name === editingCategory) ?? null,
@@ -106,6 +108,23 @@ export default function Inventory() {
     if (q) list = list.filter(p => p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
     return list;
   }, [products, selectedCategory, productSearch]);
+
+  const totalProductPages = Math.max(1, Math.ceil(productsByActiveCategory.length / PRODUCTS_PER_PAGE));
+  const paginationStartIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = productsByActiveCategory.slice(
+    paginationStartIndex,
+    paginationStartIndex + PRODUCTS_PER_PAGE,
+  );
+  const showingStart = productsByActiveCategory.length ? paginationStartIndex + 1 : 0;
+  const showingEnd = Math.min(paginationStartIndex + paginatedProducts.length, productsByActiveCategory.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, productSearch, inventoryView]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalProductPages));
+  }, [totalProductPages]);
 
   // KPI stats
   const kpis = useMemo(() => ({
@@ -604,7 +623,7 @@ export default function Inventory() {
             </div>
           ) : (
             <div className="space-y-3">
-              {productsByActiveCategory.map((product) => {
+              {paginatedProducts.map((product) => {
                 const ss = stockStatus(product.stock);
                 const SIcon = ss.icon;
                 const isEditingStock = editingStockId === product.id;
@@ -727,6 +746,32 @@ export default function Inventory() {
                   </div>
                 );
               })}
+              <div className="glass rounded-2xl border border-zinc-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  Mostrando {showingStart}-{showingEnd} de {productsByActiveCategory.length} productos
+                </p>
+                <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 tabular-nums">
+                    Página {currentPage} de {totalProductPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.min(totalProductPages, page + 1))}
+                    disabled={currentPage === totalProductPages}
+                    className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-zinc-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           </>)}
