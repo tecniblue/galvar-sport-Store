@@ -214,7 +214,7 @@ export default function Alianzas({ alliances }) {
                 {selectedSede.nombre}
               </h2>
 
-              <p className="text-zinc-400 font-inter text-xs md:text-sm leading-relaxed mb-6 border-l-2 border-green-500 pl-4 italic">
+              <p className="text-zinc-400 font-inter text-xs md:text-sm leading-relaxed mb-6 border-l-2 border-green-500 pl-4 italic whitespace-pre-line">
                 {selectedSede.descripcion}
               </p>
 
