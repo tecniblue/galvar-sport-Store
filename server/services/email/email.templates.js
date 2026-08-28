@@ -57,7 +57,7 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
             </div>
             <div class="detail-row">
               <span class="detail-label">Fecha</span>
-              <span class="detail-value">${toHtmlText(formatDate())}</span>
+              <span class="detail-value">${toHtmlText(formatDate(order.created_at))}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">M&eacute;todo de entrega</span>
@@ -195,7 +195,7 @@ export const getAdminPurchaseTemplate = (order) => {
             </div>
             <div class="detail-row">
               <span class="detail-label">Fecha</span>
-              <span class="detail-value">${toHtmlText(formatDate())}</span>
+              <span class="detail-value">${toHtmlText(formatDate(order.created_at))}</span>
             </div>
           </div>
 

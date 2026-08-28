@@ -5,11 +5,14 @@ export const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-export const formatDate = () => {
+export const formatDate = (dateValue = new Date()) => {
+  const date = new Date(dateValue);
+
   return new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
     dateStyle: "full",
     timeStyle: "short",
-  }).format(new Date());
+  }).format(Number.isNaN(date.getTime()) ? new Date() : date);
 };
 
 export const escapeHtml = (value) =>
