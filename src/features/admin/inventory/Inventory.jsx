@@ -86,7 +86,15 @@ export default function Inventory() {
   const selectedCategory =
     activeCategory && categories.some((c) => c.name === activeCategory)
       ? activeCategory
-      : categories.find(c => c.name !== "Todos")?.name ?? null;
+      : "Todos";
+
+  const categoriesList = useMemo(
+    () => [
+      { name: "Todos" },
+      ...categories.filter((category) => category?.name && category.name !== "Todos")
+    ],
+    [categories]
+  );
 
   const managedCategories = useMemo(
     () => categories.filter((category) => category?.name && category.name !== "Todos"),
@@ -95,17 +103,29 @@ export default function Inventory() {
 
   const filteredCategories = useMemo(() => {
     const needle = categorySearch.trim().toLowerCase();
-    if (!needle) return managedCategories;
-    return managedCategories.filter((category) =>
+    if (!needle) return categoriesList;
+    return categoriesList.filter((category) =>
       category.name.toLowerCase().includes(needle),
     );
-  }, [categorySearch, managedCategories]);
+  }, [categorySearch, categoriesList]);
 
   const productsByActiveCategory = useMemo(() => {
-    if (!selectedCategory) return [];
-    let list = products.filter((p) => p.cat === selectedCategory);
+    let list = products;
+    if (selectedCategory && selectedCategory !== "Todos") {
+      list = list.filter((p) => p.cat === selectedCategory);
+    }
     const q = productSearch.trim().toLowerCase();
-    if (q) list = list.filter(p => p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
+    if (q) {
+      list = list.filter(p => {
+        const nameMatch = p.name?.toLowerCase().includes(q);
+        const skuMatch = p.sku?.toLowerCase().includes(q);
+        const catMatch = p.cat?.toLowerCase().includes(q);
+        const variantMatch = p.variant?.toLowerCase().includes(q);
+        const descMatch = p.desc?.toLowerCase().includes(q);
+        const sizesMatch = p.sizes && p.sizes.some(s => s.toLowerCase().includes(q));
+        return nameMatch || skuMatch || catMatch || variantMatch || descMatch || sizesMatch;
+      });
+    }
     return list;
   }, [products, selectedCategory, productSearch]);
 
@@ -489,7 +509,8 @@ export default function Inventory() {
             ) : (
               filteredCategories.map((categoryObj) => {
                 const category = categoryObj.name;
-                const totalProducts = products.filter(
+                const isTodos = category === "Todos";
+                const totalProducts = isTodos ? products.length : products.filter(
                   (product) => product.cat === category,
                 ).length;
 
@@ -509,29 +530,31 @@ export default function Inventory() {
                         className="flex-grow text-left flex items-center justify-between gap-2"
                       >
                         <span className="text-[11px] font-black uppercase tracking-wide text-white truncate">
-                          {category}
+                          {isTodos ? "Todas las categorías" : category}
                         </span>
                         <span className="text-[10px] font-black text-zinc-500 tabular-nums shrink-0">
                           {totalProducts}
                         </span>
                       </button>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => openRenameCategory(category)}
-                          className="px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase text-zinc-400 hover:text-white hover:border-zinc-700 transition-all"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteCategory(category)}
-                          className="p-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-600 hover:text-red-500 hover:border-red-500/40 transition-all"
-                          aria-label={`Eliminar ${category}`}
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
+                      {!isTodos && (
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openRenameCategory(category)}
+                            className="px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[9px] font-black uppercase text-zinc-400 hover:text-white hover:border-zinc-700 transition-all"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteCategory(category)}
+                            className="p-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-600 hover:text-red-500 hover:border-red-500/40 transition-all"
+                            aria-label={`Eliminar ${category}`}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -568,7 +591,7 @@ export default function Inventory() {
                 {inventoryView === "featured" ? "Destacados en Home" : (selectedCategory ? "Categoría" : "Inventario")}
               </p>
               <h3 className="text-2xl font-black italic uppercase text-white">
-                {inventoryView === "featured" ? "Destacados" : (selectedCategory ?? "Sin categorías")}
+                {inventoryView === "featured" ? "Destacados" : (selectedCategory === "Todos" ? "Todas las categorías" : (selectedCategory ?? "Sin categorías"))}
               </h3>
               {inventoryView === "products" && (
                 <p className="text-[10px] text-zinc-600 font-bold mt-0.5">{productsByActiveCategory.length} producto(s) en esta vista</p>
