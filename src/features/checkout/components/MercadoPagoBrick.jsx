@@ -1,6 +1,19 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import BlockingOverlay from "../../../components/ui/BlockingOverlay";
 
+const maskValue = (value) => {
+  const text = String(value || "").trim();
+  if (text.length <= 12) return text || "missing";
+  return `${text.slice(0, 6)}...${text.slice(-4)}`;
+};
+
+const publicKeyModeOf = (publicKey) => {
+  const key = String(publicKey || "").trim();
+  if (key.startsWith("APP_USR-")) return "production";
+  if (key.startsWith("TEST-")) return "test";
+  return key ? "unknown" : "missing";
+};
+
 /**
  * MercadoPagoBrick Component
  * Renders the Payment Brick from Mercado Pago
@@ -29,7 +42,32 @@ export const MercadoPagoBrick = ({
   const shouldEnableCards = import.meta.env.VITE_MP_ENABLE_CARDS !== "false";
 
   useEffect(() => {
-    if (isRenderingRef.current || !preferenceId) return;
+    const validPublicKey = String(publicKey || "").trim();
+    const validPreferenceId = String(preferenceId || "").trim();
+    const validAmount = Number(amount);
+
+    if (isRenderingRef.current) return;
+
+    if (!validPublicKey || !Number.isFinite(validAmount) || validAmount <= 0 || !validPreferenceId) {
+      const error = new Error("Configuracion invalida para cargar Mercado Pago.");
+      console.error("[MP BRICK] Invalid initialization", {
+        publicKeyMode: publicKeyModeOf(publicKey),
+        preferenceId: maskValue(preferenceId),
+        amount,
+        wallet: shouldEnableWallet,
+        cards: shouldEnableCards,
+      });
+      if (onError) onError(error);
+      return;
+    }
+
+    console.info("[MP BRICK]", {
+      publicKeyMode: publicKeyModeOf(publicKey),
+      preferenceId: maskValue(preferenceId),
+      amount: validAmount,
+      wallet: shouldEnableWallet,
+      cards: shouldEnableCards,
+    });
 
     // Flag de cancelación por closure para manejar React StrictMode:
     // en DEV React hace mount → cleanup → remount; si el cleanup corre
@@ -53,8 +91,8 @@ export const MercadoPagoBrick = ({
           paymentMethods.debitCard = "all";
         }
 
-        if (shouldEnableWallet) {
-          paymentMethods.mercadoPago = ["wallet_purchase"];
+        if (shouldEnableWallet && validPreferenceId) {
+          paymentMethods.mercadoPago = "all";
         }
 
         const controller = await bricksBuilder.create(
@@ -62,8 +100,8 @@ export const MercadoPagoBrick = ({
           containerId,
           {
             initialization: {
-              amount: amount,
-              preferenceId: preferenceId,
+              amount: validAmount,
+              preferenceId: validPreferenceId,
               payer: { email: payerEmail, entityType: "individual" },
             },
             customization: {
@@ -86,9 +124,12 @@ export const MercadoPagoBrick = ({
                     selected_payment_method: selectedPaymentMethod,
                     payment_method_id: formData?.payment_method_id,
                     additional_data: additionalData ?? null,
-                    transaction_amount: formData?.transaction_amount || amount,
+                    transaction_amount: formData?.transaction_amount || validAmount,
                     description,
                     external_reference: externalReference,
+                    payment_attempt_id:
+                      window.crypto?.randomUUID?.() ||
+                      `${Date.now()}-${Math.random().toString(16).slice(2)}`,
                   };
 
                   onSubmit({

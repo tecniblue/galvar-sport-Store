@@ -1,10 +1,47 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
+const credentialModeOf = (accessToken) => {
+  const token = String(accessToken || "").trim();
+  if (token.startsWith("APP_USR-")) return "production";
+  if (token.startsWith("TEST-")) return "test";
+  return token ? "unknown" : "missing";
+};
+
+const maskValue = (value) => {
+  const text = String(value || "").trim();
+  if (text.length <= 12) return text || "";
+  return `${text.slice(0, 6)}...${text.slice(-4)}`;
+};
+
+const errorStatusOf = (error) =>
+  error?.status || error?.statusCode || error?.cause?.status || error?.cause?.[0]?.status || null;
+
+const errorCodeOf = (error) =>
+  error?.code || error?.cause?.code || error?.cause?.[0]?.code || null;
+
+const errorStatusDetailOf = (error) =>
+  error?.status_detail ||
+  error?.cause?.status_detail ||
+  error?.cause?.[0]?.status_detail ||
+  error?.cause?.[0]?.description ||
+  null;
+
+const safePaymentLog = (payment, error = null) => ({
+  http: errorStatusOf(error),
+  code: errorCodeOf(error),
+  status: payment?.status || error?.status || null,
+  status_detail: payment?.status_detail || errorStatusDetailOf(error),
+  payment_id: payment?.id ? String(payment.id) : null,
+  payment_method_id: payment?.payment_method_id || null,
+});
+
 export const createMercadoPagoService = (accessToken) => {
   if (!accessToken) {
     console.warn("Mercado Pago Access Token not provided. Payments will not work.");
     return null;
   }
+
+  console.info("[MP] Credential mode:", credentialModeOf(accessToken));
 
   const client = new MercadoPagoConfig({ accessToken, options: { timeout: 5000 } });
   const preferenceService = new Preference(client);
@@ -20,14 +57,15 @@ export const createMercadoPagoService = (accessToken) => {
     async createPreference(orderData, baseUrl) {
       try {
         const publicOrderRef = String(orderData.client_order_id || orderData.id);
+        const items = orderData.items.map((item) => ({
+          id: String(item.id),
+          title: String(item.name || "Producto").slice(0, 255),
+          quantity: Math.max(1, Number(item.qty)),
+          unit_price: Math.round(Number(item.price)),
+          currency_id: 'CLP',
+        }));
         const body = {
-          items: orderData.items.map((item) => ({
-            id: String(item.id),
-            title: String(item.name || "Producto").slice(0, 255),
-            quantity: Math.max(1, Number(item.qty)),
-            unit_price: Math.round(Number(item.price)),
-            currency_id: 'CLP',
-          })),
+          items,
           payer: {
             name: String(orderData.customerName || "Cliente").split(" ")[0],
             surname: String(orderData.customerName || "Galvar").split(" ").slice(1).join(" ") || "Sport",
@@ -38,17 +76,33 @@ export const createMercadoPagoService = (accessToken) => {
             failure: `${baseUrl}/checkout/success?status=failure&external_reference=${encodeURIComponent(publicOrderRef)}`,
             pending: `${baseUrl}/checkout/success?status=pending&external_reference=${encodeURIComponent(publicOrderRef)}`,
           },
+          notification_url: `${baseUrl}/api/mercadopago/webhook`,
           external_reference: String(orderData.id),
         };
 
-        console.log("DEBUG: Creating MP preference (ULTRA-MINIMAL) with body:", JSON.stringify(body, null, 2));
+        const amount = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+        console.info("[MP] Creating production preference", {
+          credentialMode: credentialModeOf(accessToken),
+          amount,
+          currency: "CLP",
+          itemsCount: items.length,
+          externalReference: maskValue(orderData.id),
+          notificationUrl: body.notification_url,
+        });
 
         const preference = await preferenceService.create({ body });
+        console.info("[MP] Preference created", {
+          preferenceId: maskValue(preference?.id),
+          externalReference: maskValue(orderData.id),
+        });
         return preference;
       } catch (error) {
-        console.error("Error creating Mercado Pago preference:", error);
-        // Log detallado del error de la API de MP si existe
-        if (error.cause) console.error("MP API Error Cause:", JSON.stringify(error.cause, null, 2));
+        console.error("[MP] Preference creation failed", {
+          http: errorStatusOf(error),
+          code: errorCodeOf(error),
+          status_detail: errorStatusDetailOf(error),
+          message: error?.message,
+        });
 
         const mpCode = error?.code || error?.cause?.[0]?.code;
         const mpMessage = error?.message || error?.cause?.[0]?.description;
@@ -140,6 +194,10 @@ export const createMercadoPagoService = (accessToken) => {
         const paymentMethodId = String(paymentData.payment_method_id || "").trim();
         const selectedPaymentMethod = String(paymentData.selected_payment_method || "").trim();
         const token = String(paymentData.token || "").trim();
+        const idempotencyKey = String(paymentData.payment_attempt_id || "").trim();
+        const transactionAmount = Number(paymentData.transaction_amount);
+        const payerEmail = String(paymentData.payer?.email || "").trim();
+        const externalReference = String(paymentData.external_reference || "").trim();
         const cardPaymentTypes = new Set(["credit_card", "debit_card", "prepaid_card"]);
 
         if (!paymentMethodId) {
@@ -150,17 +208,29 @@ export const createMercadoPagoService = (accessToken) => {
           throw new Error("Falta token de tarjeta desde Mercado Pago Brick");
         }
 
+        if (!Number.isFinite(transactionAmount) || transactionAmount <= 0) {
+          throw new Error("Monto inválido para procesar pago Mercado Pago");
+        }
+
+        if (!payerEmail) {
+          throw new Error("Falta payer.email desde Mercado Pago Brick");
+        }
+
+        if (!externalReference) {
+          throw new Error("Falta external_reference para procesar pago Mercado Pago");
+        }
+
         const body = {
-          transaction_amount: Number(paymentData.transaction_amount),
+          transaction_amount: transactionAmount,
           description: paymentData.description || "Pedido Galvar Sport",
           installments: Number(paymentData.installments) || 1,
           payment_method_id: paymentMethodId,
           payer: {
-            email: paymentData.payer?.email,
+            email: payerEmail,
           },
-          external_reference: paymentData.external_reference,
+          external_reference: externalReference,
           metadata: {
-            order_id: paymentData.external_reference,
+            order_id: externalReference,
           },
         };
 
@@ -190,15 +260,24 @@ export const createMercadoPagoService = (accessToken) => {
           body.three_d_secure_mode = paymentData.three_d_secure_mode;
         }
 
-        console.log("DEBUG: Sending payment to MP:", JSON.stringify(body, null, 2));
+        console.info("[MP] Creating card payment", {
+          credentialMode: credentialModeOf(accessToken),
+          amount: body.transaction_amount,
+          payment_method_id: body.payment_method_id,
+          issuer_id: body.issuer_id || null,
+          installments: body.installments,
+          externalReference: maskValue(body.external_reference),
+          hasToken: Boolean(body.token),
+          hasIdentification: Boolean(body.payer?.identification?.number),
+          idempotencyKey: maskValue(idempotencyKey),
+        });
 
-        const payment = await paymentService.create({ body });
+        const requestOptions = idempotencyKey ? { idempotencyKey } : undefined;
+        const payment = await paymentService.create({ body, requestOptions });
+        console.info("[MP PAYMENT RESPONSE]", safePaymentLog(payment));
         return payment;
       } catch (error) {
-        console.error("Error processing Mercado Pago direct payment:", error);
-        if (error.cause) {
-          console.error("MP API Error Cause Details:", JSON.stringify(error.cause, null, 2));
-        }
+        console.error("[MP PAYMENT RESPONSE]", safePaymentLog(null, error));
         throw error;
       }
     }

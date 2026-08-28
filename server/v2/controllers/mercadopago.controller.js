@@ -35,6 +35,25 @@ const verifySignature = (headers, query, secret) => {
   return expected.length === received.length && crypto.timingSafeEqual(expected, received);
 };
 
+const mpErrorStatusOf = (error) =>
+  error?.status || error?.statusCode || error?.cause?.status || error?.cause?.[0]?.status || null;
+
+const mpErrorCodeOf = (error) =>
+  error?.code || error?.cause?.code || error?.cause?.[0]?.code || null;
+
+const mpErrorStatusDetailOf = (error) =>
+  error?.status_detail ||
+  error?.cause?.status_detail ||
+  error?.cause?.[0]?.status_detail ||
+  error?.cause?.[0]?.description ||
+  null;
+
+const safePaymentErrorDetails = (error) => ({
+  http: mpErrorStatusOf(error),
+  code: mpErrorCodeOf(error),
+  status_detail: mpErrorStatusDetailOf(error),
+});
+
 const mpService = createMercadoPagoService(process.env.MP_ACCESS_TOKEN);
 
 export const createPreference = async (req, res) => {
@@ -64,6 +83,10 @@ export const createPreference = async (req, res) => {
       baseUrl = baseUrl.slice(0, -1);
     }
     const preference = await mpService.createPreference(fullOrder, baseUrl);
+
+    if (!preference?.id) {
+      throw new Error("Mercado Pago no devolvió un preferenceId válido");
+    }
     
     await prisma.orders.update({
       where: { id: fullOrder.id },
@@ -112,19 +135,25 @@ export const processPayment = async (req, res) => {
       return res.status(400).json({ error: "La orden no tiene preferencia de Mercado Pago asociada" });
     }
 
-    req.body.transaction_amount = Number(orderToPay.total);
+    const paymentPayload = {
+      ...req.body,
+      transaction_amount: Number(orderToPay.total),
+      payment_attempt_id: req.body.payment_attempt_id || crypto.randomUUID(),
+    };
 
-    const payment = await mpService.processPayment(req.body);
+    const payment = await mpService.processPayment(paymentPayload);
     
     await applyPaymentToOrder(payment);
 
     res.json(payment);
   } catch (error) {
-    console.error("Error processing payment brick:", error);
-    const details = error.cause || error.message;
+    console.error("Error processing payment brick:", {
+      message: error?.message,
+      details: safePaymentErrorDetails(error),
+    });
     res.status(400).json({ 
       error: "Error al procesar el pago con Mercado Pago",
-      details: details,
+      details: safePaymentErrorDetails(error),
       raw_message: error.message
     });
   }
@@ -144,10 +173,10 @@ export const handleWebhook = async (req, res) => {
   if (mpSecret) {
     const isValid = verifySignature(req.headers, req.query, mpSecret);
     if (!isValid) {
-      console.warn("⚠️ Firma de Webhook INVÁLIDA.");
+      console.warn("Firma de Webhook invalida.");
       return res.status(401).send("Invalid signature");
     } else {
-      console.log("✅ Firma de Webhook verificada correctamente.");
+      console.log("Firma de Webhook verificada correctamente.");
     }
   }
 
