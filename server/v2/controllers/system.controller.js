@@ -30,9 +30,14 @@ const normalizeStockBySize = (raw) => {
   return result;
 };
 const normalizeUrl = (value) => {
-  const text = normalizeString(value);
+  let text = normalizeString(value);
   if (!text) return "";
   if (text.startsWith('/uploads/')) return text;
+  
+  if (!text.startsWith('http://') && !text.startsWith('https://')) {
+    text = 'https://' + text;
+  }
+  
   try {
     const url = new URL(text);
     return ['http:', 'https:'].includes(url.protocol) ? url.toString() : "";

@@ -252,20 +252,20 @@ export default function Alianzas({ alliances }) {
               {/* Enlaces como Texto Minimalista */}
               <div className="flex flex-wrap gap-x-6 gap-y-2 pt-6 border-t border-zinc-900">
                 {selectedSede.instagram && (
-                  <div className="flex items-center gap-2 group cursor-pointer">
+                  <a href={selectedSede.instagram.startsWith('http') ? selectedSede.instagram : `https://instagram.com/${selectedSede.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group cursor-pointer">
                     <AtSign size={14} className="text-green-500" />
                     <span className="font-oswald text-[10px] uppercase tracking-[0.15em] text-zinc-400 group-hover:text-white transition-colors">
                       {selectedSede.instagram}
                     </span>
-                  </div>
+                  </a>
                 )}
                 {selectedSede.website && (
-                  <div className="flex items-center gap-2 group cursor-pointer">
+                  <a href={selectedSede.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group cursor-pointer">
                     <Globe size={14} className="text-green-500" />
                     <span className="font-oswald text-[10px] uppercase tracking-[0.15em] text-zinc-400 group-hover:text-white transition-colors">
                       {selectedSede.website}
                     </span>
-                  </div>
+                  </a>
                 )}
               </div>
             </div>
