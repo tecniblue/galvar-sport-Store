@@ -37,7 +37,7 @@ export const MercadoPagoBrick = ({
   const isRenderingRef = useRef(false);
   const rafRef = useRef(null);
   const shouldEnableWallet =
-    import.meta.env.VITE_MP_ENABLE_WALLET === "true" &&
+    import.meta.env.VITE_MP_ENABLE_WALLET !== "false" &&
     !String(publicKey || "").startsWith("TEST-");
   const shouldEnableCards = import.meta.env.VITE_MP_ENABLE_CARDS !== "false";
 
