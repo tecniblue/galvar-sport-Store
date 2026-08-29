@@ -5,7 +5,7 @@ export const DeliveryMethods = memo(function DeliveryMethods({ fulfillment, setF
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20 text-green-400 font-black text-sm border border-green-500/30">3</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20 text-green-400 font-black text-sm border border-green-500/30">2</span>
         <h2 className="text-[14px] font-black uppercase tracking-widest text-white">
           Métodos de Entrega
         </h2>
@@ -68,7 +68,7 @@ export const DeliveryMethods = memo(function DeliveryMethods({ fulfillment, setF
             <Truck size={16} className="text-green-500" /> Delivery
           </div>
           <div className="mt-2 text-[11px] uppercase tracking-widest text-zinc-500 font-bold">
-            Coordinar por WhatsApp
+            Solo Antofagasta
           </div>
         </button>
       </div>

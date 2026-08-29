@@ -14,6 +14,7 @@ export const ClientForm = memo(function ClientForm({
   errors,
   formatRut,
   digitsOnly,
+  showNotes = true,
 }) {
   return (
     <div className="space-y-6">
@@ -97,18 +98,20 @@ export const ClientForm = memo(function ClientForm({
           ) : null}
         </div>
 
-        <div className="space-y-2 sm:col-span-2">
-          <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500">
-            Notas (opcional)
-          </label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 px-5 text-xs font-bold text-white uppercase outline-none transition-colors focus:border-green-500"
-            placeholder="TALLA, COLOR, ETC."
-          />
-        </div>
+        {showNotes ? (
+          <div className="space-y-2 sm:col-span-2">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500">
+              Notas (opcional)
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 px-5 text-xs font-bold text-white uppercase outline-none transition-colors focus:border-green-500"
+              placeholder="TALLA, COLOR, ETC."
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

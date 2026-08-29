@@ -14,11 +14,17 @@ import { MercadoPagoBrick } from "../features/checkout/components/MercadoPagoBri
 import { digitsOnly, formatRut, createClientOrderId } from "../features/checkout/utils/checkout.utils";
 import { CHECKOUT_STEPS, MP_CHECKOUT_STEPS, CheckoutProcessingOverlay } from "../features/checkout/components/CheckoutProcessingOverlay";
 import { ClientForm } from "../features/checkout/components/ClientForm";
+import { DeliveryForm } from "../features/checkout/components/DeliveryForm";
 import { ShippingForm } from "../features/checkout/components/ShippingForm";
 import { DeliveryMethods } from "../features/checkout/components/DeliveryMethods";
 import { PaymentMethods } from "../features/checkout/components/PaymentMethods";
 import { OrderSummary } from "../features/checkout/components/OrderSummary";
 import { SEO } from "../components/seo";
+import {
+  PICKUP_ADDRESS,
+  PICKUP_COMUNA_REGION,
+  PICKUP_LOCATION_NAME,
+} from "../config/store";
 
 const MERCADO_PAGO_STATUS_MESSAGES = {
   cc_rejected_other_reason:
@@ -43,6 +49,10 @@ const getMercadoPagoStatusMessage = (result) => {
 
   return "No pudimos procesar el pago. No se realizo ningun cobro. Intenta nuevamente o usa otra tarjeta.";
 };
+
+const LOCAL_DELIVERY_REGION = "Antofagasta";
+const LOCAL_DELIVERY_COMUNA = "Antofagasta";
+const LOCAL_DELIVERY_COMUNA_REGION = `${LOCAL_DELIVERY_COMUNA}, ${LOCAL_DELIVERY_REGION}`;
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -107,6 +117,12 @@ export default function CheckoutPage() {
   const clientOrderIdRef = useRef(createClientOrderId());
 
   const cartIsEmpty = cart.length === 0;
+
+  useEffect(() => {
+    if (fulfillment !== "delivery") return;
+    setRegion(LOCAL_DELIVERY_REGION);
+    setComuna(LOCAL_DELIVERY_COMUNA);
+  }, [fulfillment]);
 
   useEffect(() => {
     if (!isPaying) return undefined;
@@ -177,7 +193,12 @@ export default function CheckoutPage() {
       nextErrors.email = "Ingresa un email válido.";
     }
 
-    if (fulfillment !== "pickup") {
+    if (fulfillment === "delivery") {
+      if (String(region).trim() !== LOCAL_DELIVERY_REGION || String(comuna).trim() !== LOCAL_DELIVERY_COMUNA) {
+        nextErrors.comuna = "Delivery disponible solo para Antofagasta.";
+      }
+      if (!String(address).trim()) nextErrors.address = "Ingresa tu dirección.";
+    } else if (fulfillment === "chilexpress") {
       if (!String(region).trim()) nextErrors.region = "Ingresa tu región.";
       if (!String(comuna).trim()) nextErrors.comuna = "Ingresa tu comuna.";
       if (!String(address).trim()) nextErrors.address = "Ingresa tu dirección.";
@@ -216,9 +237,15 @@ export default function CheckoutPage() {
       lines.push(`COMUNA: ${String(comuna).trim()}`);
       lines.push(`DIRECCION EXACTA: ${String(address).trim()}`);
     } else if (fulfillment === "delivery") {
-      lines.push(`DIRECCION: ${String(address).trim()}`);
+      lines.push(`COMUNA: ${LOCAL_DELIVERY_COMUNA}`);
+      lines.push(`DIRECCION EXACTA: ${String(address).trim()}`);
+    } else if (fulfillment === "pickup") {
+      lines.push(`LOCAL: ${PICKUP_LOCATION_NAME}`);
+      lines.push(`DIRECCION RETIRO: ${PICKUP_ADDRESS}`);
     }
-    if (String(notes).trim()) lines.push(`NOTAS: ${String(notes).trim()}`);
+    if (String(notes).trim()) {
+      lines.push(`${fulfillment === "delivery" ? "REFERENCIA DE ENTREGA" : "NOTAS"}: ${String(notes).trim()}`);
+    }
     lines.push("PAGO: WhatsApp");
     lines.push("");
 
@@ -251,10 +278,14 @@ export default function CheckoutPage() {
       customerPhone: String(phone).trim(),
       customerEmail: String(email).trim(),
       rut: String(rut).trim(),
-      comunaRegion: `${String(comuna).trim()}, ${String(region).trim()}`,
+      comunaRegion: fulfillment === "pickup"
+        ? PICKUP_COMUNA_REGION
+        : fulfillment === "delivery"
+          ? LOCAL_DELIVERY_COMUNA_REGION
+          : `${String(comuna).trim()}, ${String(region).trim()}`,
       fulfillment,
       paymentMethod,
-      address: String(address).trim(),
+      address: fulfillment === "pickup" ? "" : String(address).trim(),
       notes: String(notes).trim(),
       items: cart.map((item) => ({
         id: item.id,
@@ -284,10 +315,14 @@ export default function CheckoutPage() {
     customerPhone: String(phone).trim(),
     customerEmail: String(email).trim(),
     rut: String(rut).trim(),
-    comunaRegion: `${String(comuna).trim()}, ${String(region).trim()}`,
+    comunaRegion: fulfillment === "pickup"
+      ? PICKUP_COMUNA_REGION
+      : fulfillment === "delivery"
+        ? LOCAL_DELIVERY_COMUNA_REGION
+        : `${String(comuna).trim()}, ${String(region).trim()}`,
     fulfillment,
     paymentMethod,
-    address: String(address).trim(),
+    address: fulfillment === "pickup" ? "" : String(address).trim(),
     notes: String(notes).trim(),
     items: cart.map((item) => ({
       id: item.id,
@@ -553,6 +588,7 @@ export default function CheckoutPage() {
               errors={errors}
               formatRut={formatRut}
               digitsOnly={digitsOnly}
+              showNotes={fulfillment !== "delivery"}
             />
 
             <div className="h-px w-full bg-zinc-800/50 my-8"></div>
@@ -564,7 +600,20 @@ export default function CheckoutPage() {
               persistPrefs={persistPrefs}
             />
 
-            {fulfillment !== "pickup" && (
+            {fulfillment === "delivery" && (
+              <>
+                <div className="h-px w-full bg-zinc-800/50 my-8"></div>
+                <DeliveryForm
+                  address={address}
+                  setAddress={setAddress}
+                  notes={notes}
+                  setNotes={setNotes}
+                  errors={errors}
+                />
+              </>
+            )}
+
+            {fulfillment === "chilexpress" && (
               <>
                 <div className="h-px w-full bg-zinc-800/50 my-8"></div>
                 <ShippingForm

@@ -6,6 +6,10 @@ import {
   releaseOrderItemStock,
   reserveOrderItemStock,
 } from './inventory.service.js';
+import {
+  PICKUP_ADDRESS,
+  PICKUP_COMUNA_REGION,
+} from '../config/store.js';
 
 // parseJson removed as Prisma handles Json type natively
 
@@ -28,6 +32,10 @@ export const fetchOrderByClient = async (clientOrderId) => {
     customerName: String(row.customer_name || '').trim().split(/\s+/)[0] || 'Cliente',
     fulfillment: row.fulfillment,
     paymentMethod: row.payment_method,
+    address: row.address,
+    comuna_region: row.comuna_region,
+    comunaRegion: row.comuna_region,
+    notes: row.notes,
     items: row.items,
     total: row.total,
     status: row.status,
@@ -89,7 +97,17 @@ export const insertSecureOrderService = async (orderData, paymentMethod) => {
     }
 
     const fulfillment = sanitizeString(orderData.fulfillment ?? 'pickup');
-    const address = sanitizeString(orderData.address ?? '');
+    const submittedAddress = sanitizeString(orderData.address ?? '');
+    const address = fulfillment === 'pickup' ? '' : submittedAddress;
+    const comunaRegion = fulfillment === 'pickup'
+      ? (sanitizeString(orderData.comunaRegion) || PICKUP_COMUNA_REGION)
+      : fulfillment === 'delivery'
+        ? 'Antofagasta, Antofagasta'
+        : sanitizeString(orderData.comunaRegion);
+
+    if (fulfillment === 'delivery' && !submittedAddress) {
+      throw new Error("Ingresa una dirección para el delivery en Antofagasta.");
+    }
 
     const newOrder = await tx.orders.create({
       data: {
@@ -98,7 +116,7 @@ export const insertSecureOrderService = async (orderData, paymentMethod) => {
         customer_phone: sanitizeString(orderData.customerPhone),
         customer_email: sanitizeString(orderData.customerEmail),
         rut: sanitizeString(orderData.rut),
-        comuna_region: sanitizeString(orderData.comunaRegion),
+        comuna_region: comunaRegion,
         client_order_id: clientOrderId,
         fulfillment,
         payment_method: paymentMethod,

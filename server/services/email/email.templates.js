@@ -11,20 +11,69 @@ import {
 import { getBaseStyles } from './email.styles.js';
 import { getStaticLogoHtml } from './email.components.js';
 
+const getPickupDetailsRows = (order, storeContact) => {
+  if (order.fulfillment !== "pickup") return "";
+
+  const locationName = storeContact?.pickupLocationName || "Galvar Sport - Antofagasta";
+  const pickupAddress = storeContact?.pickupAddress || "Clodomiro Rozas 965, Antofagasta, Chile";
+
+  return `
+    <div class="detail-row">
+      <span class="detail-label">Local de retiro</span>
+      <span class="detail-value">${toHtmlText(locationName)}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Direcci&oacute;n de retiro</span>
+      <span class="detail-value">${toHtmlText(pickupAddress)}</span>
+    </div>
+  `;
+};
+
+const getPickupDetailsTableRows = (order, storeContact) => {
+  if (order.fulfillment !== "pickup") return "";
+
+  const locationName = storeContact?.pickupLocationName || "Galvar Sport - Antofagasta";
+  const pickupAddress = storeContact?.pickupAddress || "Clodomiro Rozas 965, Antofagasta, Chile";
+
+  return `
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Local de retiro</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; text-align: right; color: #0f172a;">${toHtmlText(locationName)}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Direcci&oacute;n de retiro</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; text-align: right; color: #0f172a;">${toHtmlText(pickupAddress)}</td>
+    </tr>
+  `;
+};
+
 export const getCustomerPurchaseTemplate = (order, storeContact) => {
   const itemsHtml = order.items
     .map((item) => {
       const quantity = getItemQuantity(item);
       const variant = item.variant ? `Variante: ${toHtmlText(item.variant)} | ` : "";
       const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
+      
+      const imageUrl = item.image && !item.image.startsWith('http') 
+        ? `${process.env.STORE_URL || 'https://galvarsport.com'}${item.image.startsWith('/') ? '' : '/'}${item.image}`
+        : item.image;
 
       return `
         <tr>
-          <td>
-            <div class="item-name">${toHtmlText(item.name)}</div>
-            <div class="item-meta">${size}${variant}Cantidad: ${quantity}</div>
+          <td style="padding: 15px 0; border-bottom: 1px solid #f1f5f9;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                ${imageUrl ? `<td width="75" valign="middle" style="padding-right: 15px;">
+                  <img src="${imageUrl}" width="60" height="60" style="display: block; border-radius: 8px; border: 1px solid #e4e4e7; object-fit: cover;" alt="${toHtmlText(item.name)}"/>
+                </td>` : ""}
+                <td valign="middle">
+                  <div class="item-name" style="margin-bottom: 4px; font-weight: 600; color: #0f172a;">${toHtmlText(item.name)}</div>
+                  <div class="item-meta" style="font-size: 13px; color: #64748b;">${size}${variant}Cantidad: ${quantity}</div>
+                </td>
+              </tr>
+            </table>
           </td>
-          <td style="text-align: right; font-weight: 600;">${formatCurrency(item.price * quantity)}</td>
+          <td style="text-align: right; font-weight: 600; padding: 15px 0; border-bottom: 1px solid #f1f5f9; vertical-align: middle;">${formatCurrency(item.price * quantity)}</td>
         </tr>
       `;
     })
@@ -63,27 +112,28 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
               <span class="detail-label">M&eacute;todo de entrega</span>
               <span class="detail-value">${formatFulfillment(order.fulfillment)}</span>
             </div>
+            ${getPickupDetailsRows(order, storeContact)}
             <div class="detail-row">
               <span class="detail-label">M&eacute;todo de pago</span>
               <span class="detail-value">${formatPaymentMethod(order.payment_method)}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Estado</span>
-              <span class="badge">Confirmado</span>
+              <span class="badge">${toHtmlText(getOrderStatusLabel(order.status || 'confirmed'))}</span>
             </div>
 
-            <h3 style="font-size: 15px; margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Tus Datos</h3>
+            <h3 style="font-size: 15px; margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Datos del Cliente</h3>
             <div class="detail-row">
               <span class="detail-label">Nombre</span>
-              <span class="detail-value">${toHtmlText(order.customer_name)}</span>
+              <span class="detail-value">${toHtmlText(order.customer_name || order.customerName)}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Email</span>
-              <span class="detail-value">${toHtmlText(order.customer_email)}</span>
+              <span class="detail-value">${toHtmlText(order.customer_email || order.customerEmail)}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Tel&eacute;fono</span>
-              <span class="detail-value">${toHtmlText(order.customer_phone)}</span>
+              <span class="detail-value">${toHtmlText(order.customer_phone || order.customerPhone)}</span>
             </div>
             ${order.rut ? `
               <div class="detail-row">
@@ -91,15 +141,15 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
                 <span class="detail-value">${toHtmlText(order.rut)}</span>
               </div>
             ` : ""}
-            ${order.comuna_region ? `
+            ${(order.comuna_region || order.comunaRegion) ? `
               <div class="detail-row">
                 <span class="detail-label">Comuna/Regi&oacute;n</span>
-                <span class="detail-value">${toHtmlText(order.comuna_region)}</span>
+                <span class="detail-value">${toHtmlText(order.comuna_region || order.comunaRegion)}</span>
               </div>
             ` : ""}
-            ${order.address ? `
+            ${(order.fulfillment !== "pickup" && order.address) ? `
               <div class="detail-row">
-                <span class="detail-label">Direcci&oacute;n</span>
+                <span class="detail-label">${order.fulfillment === "delivery" ? "Direcci&oacute;n de entrega" : "Direcci&oacute;n de env&iacute;o"}</span>
                 <span class="detail-value">${toHtmlText(order.address)}</span>
               </div>
             ` : ""}
@@ -128,7 +178,7 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
           </table>
 
           <p style="font-size: 14px; color: #52525b; line-height: 1.6;">
-            Si seleccionaste retiro en tienda, te avisaremos cuando est&eacute; listo.
+            ${order.fulfillment === "pickup" ? `Te avisaremos cuando tu pedido est&eacute; listo para retiro en ${toHtmlText(storeContact?.pickupAddress || "Clodomiro Rozas 965, Antofagasta, Chile")}.` : order.fulfillment === "delivery" ? "Te avisaremos cuando tu pedido est&eacute; en camino a tu domicilio." : "Te enviaremos la informaci&oacute;n de seguimiento cuando tu pedido sea despachado."}
             Si necesitas ayuda, puedes contactarnos respondiendo a este correo o v&iacute;a WhatsApp.
           </p>
         </div>
@@ -144,20 +194,33 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
   `;
 };
 
-export const getAdminPurchaseTemplate = (order) => {
+export const getAdminPurchaseTemplate = (order, storeContact) => {
   const itemsHtml = order.items
     .map((item) => {
       const quantity = getItemQuantity(item);
       const variant = item.variant ? `Var: ${toHtmlText(item.variant)} | ` : "";
       const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
+      
+      const imageUrl = item.image && !item.image.startsWith('http') 
+        ? `${process.env.STORE_URL || 'https://galvarsport.com'}${item.image.startsWith('/') ? '' : '/'}${item.image}`
+        : item.image;
 
       return `
         <tr>
           <td style="padding: 15px 0; border-bottom: 1px solid #e4e4e7;">
-            <strong style="color: #18181b; font-size: 15px;">${toHtmlText(item.name)}</strong><br/>
-            <span style="font-size:13px; color:#71717a; margin-top: 4px; display: inline-block;">${size}${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</span>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                ${imageUrl ? `<td width="65" valign="middle" style="padding-right: 15px;">
+                  <img src="${imageUrl}" width="50" height="50" style="display: block; border-radius: 6px; border: 1px solid #e4e4e7; object-fit: cover;" alt="${toHtmlText(item.name)}"/>
+                </td>` : ""}
+                <td valign="middle">
+                  <strong style="color: #18181b; font-size: 15px;">${toHtmlText(item.name)}</strong><br/>
+                  <span style="font-size:13px; color:#71717a; margin-top: 4px; display: inline-block;">${size}${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</span>
+                </td>
+              </tr>
+            </table>
           </td>
-          <td style="text-align: right; font-weight: 600; color: #18181b; padding: 15px 0; border-bottom: 1px solid #e4e4e7;">${formatCurrency(item.price * quantity)}</td>
+          <td style="text-align: right; font-weight: 600; color: #18181b; padding: 15px 0; border-bottom: 1px solid #e4e4e7; vertical-align: middle;">${formatCurrency(item.price * quantity)}</td>
         </tr>
       `;
     })
@@ -233,13 +296,14 @@ export const getAdminPurchaseTemplate = (order) => {
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">M&eacute;todo de entrega</td>
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; text-align: right; color: #0f172a;">${formatFulfillment(order.fulfillment)}</td>
               </tr>
+              ${getPickupDetailsTableRows(order, storeContact)}
               <tr>
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">M&eacute;todo de pago</td>
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; text-align: right; color: #0f172a;">${formatPaymentMethod(order.payment_method)}</td>
               </tr>
-              ${order.address ? `
+              ${(order.fulfillment !== "pickup" && order.address) ? `
               <tr>
-                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Direcci&oacute;n</td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">${order.fulfillment === "delivery" ? "Direcci&oacute;n de entrega" : "Direcci&oacute;n de env&iacute;o"}</td>
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; text-align: right; color: #0f172a;">${toHtmlText(order.address)}</td>
               </tr>
               ` : ""}
@@ -314,6 +378,7 @@ export const getCustomerStatusUpdateTemplate = (order, storeContact) => {
               <span class="detail-label">M&eacute;todo de entrega</span>
               <span class="detail-value">${formatFulfillment(order.fulfillment)}</span>
             </div>
+            ${getPickupDetailsRows(order, storeContact)}
             <div class="detail-row">
               <span class="detail-label">M&eacute;todo de pago</span>
               <span class="detail-value">${formatPaymentMethod(order.payment_method)}</span>
@@ -330,9 +395,9 @@ export const getCustomerStatusUpdateTemplate = (order, storeContact) => {
                 <span class="detail-value">${toHtmlText(order.comuna_region)}</span>
               </div>
             ` : ""}
-            ${order.address ? `
+            ${(order.fulfillment !== "pickup" && order.address) ? `
               <div class="detail-row">
-                <span class="detail-label">Direcci&oacute;n</span>
+                <span class="detail-label">${order.fulfillment === "delivery" ? "Direcci&oacute;n de entrega" : "Direcci&oacute;n de env&iacute;o"}</span>
                 <span class="detail-value">${toHtmlText(order.address)}</span>
               </div>
             ` : ""}

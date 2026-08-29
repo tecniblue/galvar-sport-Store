@@ -5,6 +5,10 @@ import {
   getCustomerStatusUpdateTemplate,
 } from "./email.templates.js";
 import { getOrderStatusLabel } from "./email.utils.js";
+import {
+  PICKUP_ADDRESS,
+  PICKUP_LOCATION_NAME,
+} from "../../v2/config/store.js";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -34,6 +38,8 @@ const getStoreContact = () => ({
   email: process.env.STORE_CONTACT_EMAIL || "ventas@galvarsport.com",
   phone: process.env.STORE_CONTACT_PHONE || "+56 9 1234 5678",
   instagram: process.env.STORE_INSTAGRAM || "@galvar_sport",
+  pickupLocationName: PICKUP_LOCATION_NAME,
+  pickupAddress: PICKUP_ADDRESS,
 });
 
 export const sendOrderEmails = async (order) => {
@@ -67,7 +73,7 @@ export const sendOrderEmails = async (order) => {
         from: `"Galvar Sport Web" <${process.env.SMTP_USER}>`,
         to: adminEmail,
         subject: `Nueva venta - Pedido #${order.order_number}`,
-        html: getAdminPurchaseTemplate(order),
+        html: getAdminPurchaseTemplate(order, storeContact),
       }, "admin order email");
       result.adminSent = true;
       console.log(`Email sent to admin: ${adminEmail}`);

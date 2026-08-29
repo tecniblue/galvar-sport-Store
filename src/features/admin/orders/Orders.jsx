@@ -3,6 +3,10 @@ import { RefreshCw, ShoppingBag, Phone, Mail, MapPin, Store, CreditCard, Message
 import { fetchOrders, updateOrderStatus, deleteOrder } from "../../../services/api";
 import { useUIStore, useAuthStore, useCatalogStore, useCartStore } from "../../../store";
 import SectionLoader from "../../../components/ui/SectionLoader";
+import {
+  PICKUP_ADDRESS,
+  PICKUP_LOCATION_NAME,
+} from "../../../config/store";
 
 // Valid forward transitions per status
 const ALLOWED_TRANSITIONS = {
@@ -52,7 +56,7 @@ const resolveImg = (item, products) => {
 
 const exportCsv = (orders) => {
   const h = ["Nro","Fecha","Cliente","Telefono","Email","RUT","Comuna/Region","Entrega","Pago","Estado","Total","Direccion","Notas"];
-  const rows = orders.map(o => [o.order_number ?? "", fmtDate(o.created_at), o.customer_name ?? "", o.customer_phone ?? "", o.customer_email ?? "", o.rut ?? "", o.comuna_region ?? "", fulfillmentLabel(o.fulfillment), paymentLabel(o.payment_method), o.status ?? "", o.total ?? 0, o.address ?? "", o.notes ?? ""]);
+  const rows = orders.map(o => [o.order_number ?? "", fmtDate(o.created_at), o.customer_name ?? "", o.customer_phone ?? "", o.customer_email ?? "", o.rut ?? "", o.comuna_region ?? "", fulfillmentLabel(o.fulfillment), paymentLabel(o.payment_method), o.status ?? "", o.total ?? 0, o.fulfillment === "pickup" ? "" : (o.address ?? ""), o.notes ?? ""]);
   const csv = [h, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })); a.download = `ordenes-${new Date().toISOString().slice(0,10)}.csv`; a.click();
 };
@@ -147,9 +151,14 @@ function OrderDetail({ order, onStatusChange, onDelete, onBack, products }) {
               </div>
             )}
             {order.customer_email && <div className="flex items-center gap-2"><Mail size={12} className="text-green-500"/><span className="text-[11px] font-bold text-zinc-300">{order.customer_email}</span></div>}
-            {order.fulfillment !== "pickup" && order.address
-              ? <div className="flex items-start gap-2"><MapPin size={12} className="text-green-500 mt-0.5 shrink-0"/><span className="text-[11px] font-bold text-zinc-300">{order.address}</span></div>
-              : <div className="flex items-center gap-2"><Store size={12} className="text-green-500"/><span className="text-[11px] font-bold text-zinc-300">Retiro en tienda - Antofagasta</span></div>}
+            {order.fulfillment === "pickup" ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2"><Store size={12} className="text-green-500"/><span className="text-[11px] font-black text-zinc-200">{PICKUP_LOCATION_NAME}</span></div>
+                <div className="flex items-start gap-2"><MapPin size={12} className="text-green-500 mt-0.5 shrink-0"/><span className="text-[11px] font-bold text-zinc-300">{order.address || PICKUP_ADDRESS}</span></div>
+              </div>
+            ) : order.address ? (
+              <div className="flex items-start gap-2"><MapPin size={12} className="text-green-500 mt-0.5 shrink-0"/><span className="text-[11px] font-bold text-zinc-300">{order.address}</span></div>
+            ) : null}
             {order.rut && <div className="flex items-center gap-2"><Hash size={12} className="text-green-500"/><span className="text-[11px] font-bold text-zinc-300">RUT: {order.rut}</span></div>}
             {order.comuna_region && <div className="flex items-center gap-2"><MapPin size={12} className="text-green-500"/><span className="text-[11px] font-bold text-zinc-300">Comuna/Region: {order.comuna_region}</span></div>}
             <div className="flex items-center gap-2">

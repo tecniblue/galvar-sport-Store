@@ -16,6 +16,10 @@ import {
 import { fetchOrderByClient } from "../services/api";
 import { useCartStore } from "../store";
 import { SEO } from "../components/seo";
+import {
+  PICKUP_ADDRESS,
+  PICKUP_LOCATION_NAME,
+} from "../config/store";
 
 const formatCLP = (value) => {
   const num = Number(value);
@@ -202,6 +206,7 @@ export default function CheckoutSuccessPage() {
     fulfillment,
     paymentMethod,
     address,
+    comunaRegion,
     items = [],
     total,
     notes,
@@ -210,6 +215,8 @@ export default function CheckoutSuccessPage() {
 
   const isWhatsApp = paymentMethod === "whatsapp";
   const isDelivery = fulfillment === "delivery";
+  const isPickup = fulfillment === "pickup";
+  const pickupAddress = isPickup ? (address || PICKUP_ADDRESS) : "";
 
   // Determinamos el estado visual
   const isConfirmed = status === "confirmed" || isWhatsApp;
@@ -416,6 +423,18 @@ export default function CheckoutSuccessPage() {
             </div>
             {(isDelivery || fulfillment === "chilexpress") && address ? (
               <p className="text-[11px] font-bold text-zinc-300">{address}</p>
+            ) : isPickup ? (
+              <div className="space-y-1">
+                <p className="text-[11px] font-black text-zinc-200 uppercase">
+                  Local: {PICKUP_LOCATION_NAME}
+                </p>
+                <p className="text-[11px] font-bold text-zinc-300">
+                  Dirección: {pickupAddress}
+                </p>
+                {comunaRegion ? (
+                  <p className="text-[10px] font-bold text-zinc-500">{comunaRegion}</p>
+                ) : null}
+              </div>
             ) : (
               <p className="text-[11px] font-bold text-zinc-300">
                 Galvar Sport — Antofagasta
@@ -469,6 +488,8 @@ export default function CheckoutSuccessPage() {
                 step: "02",
                 text: isDelivery
                   ? "Coordinamos el envío a tu domicilio en Antofagasta."
+                  : isPickup
+                    ? `Te avisaremos cuando tu pedido esté listo para retiro en ${PICKUP_ADDRESS}.`
                   : "Te avisaremos cuando tu pedido esté listo para retiro.",
               },
               {
