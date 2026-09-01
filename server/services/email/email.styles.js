@@ -1,5 +1,9 @@
 export const getBaseStyles = () => `
   <style>
+    :root {
+      color-scheme: light;
+      supported-color-schemes: light;
+    }
     body {
       font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
       margin: 0;

@@ -11,6 +11,54 @@ import {
 import { getBaseStyles } from './email.styles.js';
 import { getStaticLogoHtml } from './email.components.js';
 
+const EMAIL_COLORS = {
+  page: "#f4f4f5",
+  white: "#ffffff",
+  black: "#000000",
+  text: "#18181b",
+  heading: "#0f172a",
+  muted: "#64748b",
+  border: "#e4e4e7",
+  softBorder: "#f1f5f9",
+  panel: "#f8fafc",
+  green: "#10b981",
+  darkGreen: "#059669",
+  brandGreen: "#00ff88",
+};
+
+const getEmailHeadMeta = () => `
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+`;
+
+const normalizeEmailImageUrl = (image) => {
+  const rawImage = String(image || "").trim();
+  if (!rawImage) return "";
+
+  if (rawImage.startsWith("https://")) {
+    return rawImage;
+  }
+
+  if (!rawImage.startsWith("/uploads/")) {
+    return "";
+  }
+
+  const rawStoreUrl = String(process.env.STORE_URL || "https://galvarsport.cl").trim();
+  try {
+    const storeUrl = new URL(rawStoreUrl);
+    if (storeUrl.protocol !== "https:") return "";
+    return new URL(rawImage, storeUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const getEmailSafeImageHtml = ({ imageUrl, alt, width = 60 }) => {
+  if (!imageUrl) return "";
+
+  return `<img src="${toHtmlText(imageUrl)}" alt="${toHtmlText(alt)}" width="${width}" border="0" style="display:block; width:${width}px; max-width:${width}px; height:auto; border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic;">`;
+};
+
 const getPickupDetailsRows = (order, storeContact) => {
   if (order.fulfillment !== "pickup") return "";
 
@@ -48,15 +96,12 @@ const getPickupDetailsTableRows = (order, storeContact) => {
 };
 
 export const getCustomerPurchaseTemplate = (order, storeContact) => {
-  const itemsHtml = order.items
+  const itemsHtml = (Array.isArray(order.items) ? order.items : [])
     .map((item) => {
       const quantity = getItemQuantity(item);
       const variant = item.variant ? `Variante: ${toHtmlText(item.variant)} | ` : "";
       const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
-      
-      const imageUrl = item.image && !item.image.startsWith('http') 
-        ? `${process.env.STORE_URL || 'https://galvarsport.com'}${item.image.startsWith('/') ? '' : '/'}${item.image}`
-        : item.image;
+      const imageUrl = normalizeEmailImageUrl(item.image);
 
       return `
         <tr>
@@ -64,7 +109,7 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 ${imageUrl ? `<td width="75" valign="middle" style="padding-right: 15px;">
-                  <img src="${imageUrl}" width="60" height="60" style="display: block; border-radius: 8px; border: 1px solid #e4e4e7; object-fit: cover;" alt="${toHtmlText(item.name)}"/>
+                  ${getEmailSafeImageHtml({ imageUrl, alt: item.name, width: 60 })}
                 </td>` : ""}
                 <td valign="middle">
                   <div class="item-name" style="margin-bottom: 4px; font-weight: 600; color: #0f172a;">${toHtmlText(item.name)}</div>
@@ -86,9 +131,10 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
       <meta charset="utf-8">
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${getEmailHeadMeta()}
       ${getBaseStyles()}
     </head>
-    <body>
+    <body bgcolor="${EMAIL_COLORS.page}" style="margin:0; padding:0; background-color:${EMAIL_COLORS.page}; color:${EMAIL_COLORS.text};">
       <div class="container">
         <div class="header">
           ${getStaticLogoHtml()}
@@ -195,32 +241,30 @@ export const getCustomerPurchaseTemplate = (order, storeContact) => {
 };
 
 export const getAdminPurchaseTemplate = (order, storeContact) => {
-  const itemsHtml = order.items
+  const itemsHtml = (Array.isArray(order.items) ? order.items : [])
     .map((item) => {
       const quantity = getItemQuantity(item);
       const variant = item.variant ? `Var: ${toHtmlText(item.variant)} | ` : "";
       const size = item.size ? `Talla: ${toHtmlText(item.size)} | ` : "";
-      
-      const imageUrl = item.image && !item.image.startsWith('http') 
-        ? `${process.env.STORE_URL || 'https://galvarsport.com'}${item.image.startsWith('/') ? '' : '/'}${item.image}`
-        : item.image;
+      const imageUrl = normalizeEmailImageUrl(item.image);
+      const productImage = getEmailSafeImageHtml({ imageUrl, alt: item.name, width: 60 });
 
       return `
-        <tr>
-          <td style="padding: 15px 0; border-bottom: 1px solid #e4e4e7;">
-            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr bgcolor="${EMAIL_COLORS.white}" style="background-color:${EMAIL_COLORS.white};">
+          <td bgcolor="${EMAIL_COLORS.white}" style="padding: 14px 0; border-bottom: 1px solid ${EMAIL_COLORS.border}; background-color:${EMAIL_COLORS.white};">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${EMAIL_COLORS.white}" style="width:100%; border-collapse:collapse; background-color:${EMAIL_COLORS.white};">
               <tr>
-                ${imageUrl ? `<td width="65" valign="middle" style="padding-right: 15px;">
-                  <img src="${imageUrl}" width="50" height="50" style="display: block; border-radius: 6px; border: 1px solid #e4e4e7; object-fit: cover;" alt="${toHtmlText(item.name)}"/>
+                ${productImage ? `<td width="74" valign="middle" bgcolor="${EMAIL_COLORS.white}" style="width:74px; padding:0 14px 0 0; background-color:${EMAIL_COLORS.white};">
+                  ${productImage}
                 </td>` : ""}
-                <td valign="middle">
-                  <strong style="color: #18181b; font-size: 15px;">${toHtmlText(item.name)}</strong><br/>
-                  <span style="font-size:13px; color:#71717a; margin-top: 4px; display: inline-block;">${size}${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</span>
+                <td valign="middle" bgcolor="${EMAIL_COLORS.white}" style="background-color:${EMAIL_COLORS.white}; padding:0;">
+                  <div style="font-family: Arial, Helvetica, sans-serif; color:${EMAIL_COLORS.text}; font-size:15px; line-height:20px; font-weight:700;">${toHtmlText(item.name)}</div>
+                  <div style="font-family: Arial, Helvetica, sans-serif; color:#71717a; font-size:13px; line-height:18px; margin-top:4px;">${size}${variant}SKU: ${toHtmlText(item.sku || "N/A")} | Cantidad: ${quantity}</div>
                 </td>
               </tr>
             </table>
           </td>
-          <td style="text-align: right; font-weight: 600; color: #18181b; padding: 15px 0; border-bottom: 1px solid #e4e4e7; vertical-align: middle;">${formatCurrency(item.price * quantity)}</td>
+          <td bgcolor="${EMAIL_COLORS.white}" style="text-align:right; font-family: Arial, Helvetica, sans-serif; font-weight:700; color:${EMAIL_COLORS.text}; padding:14px 0; border-bottom:1px solid ${EMAIL_COLORS.border}; vertical-align:middle; background-color:${EMAIL_COLORS.white};">${formatCurrency(item.price * quantity)}</td>
         </tr>
       `;
     })
@@ -233,28 +277,29 @@ export const getAdminPurchaseTemplate = (order, storeContact) => {
       <meta charset="utf-8">
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${getEmailHeadMeta()}
       ${getBaseStyles()}
     </head>
-    <body>
-      <div class="container" style="border-top: 5px solid #000000; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);">
-        <div class="header" style="background-color: #000000; padding: 30px 20px; text-align: center;">
+    <body bgcolor="${EMAIL_COLORS.page}" style="margin:0; padding:0; background-color:${EMAIL_COLORS.page}; color:${EMAIL_COLORS.text};">
+      <div class="container" bgcolor="${EMAIL_COLORS.white}" style="background-color:${EMAIL_COLORS.white}; border-top: 5px solid ${EMAIL_COLORS.black}; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);">
+        <div class="header" bgcolor="${EMAIL_COLORS.black}" style="background-color: ${EMAIL_COLORS.black}; padding: 30px 20px; text-align: center; color:${EMAIL_COLORS.white};">
           ${getStaticLogoHtml()}
           <div style="color: #a1a1aa; font-size: 12px; letter-spacing: 3px; margin-top: 15px;">ADMINISTRACI&Oacute;N</div>
         </div>
 
-        <div class="content" style="padding: 40px 30px;">
+        <div class="content" bgcolor="${EMAIL_COLORS.white}" style="padding: 40px 30px; background-color:${EMAIL_COLORS.white}; color:${EMAIL_COLORS.text};">
           <div style="text-align: center; margin-bottom: 30px;">
-            <span style="background-color: #10b981; color: white; padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">&iexcl;Nueva Venta Recibida!</span>
+            <span bgcolor="${EMAIL_COLORS.green}" style="display:inline-block; background-color:${EMAIL_COLORS.green}; color:${EMAIL_COLORS.white}; padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">&iexcl;Nueva Venta Recibida!</span>
           </div>
 
-          <div class="details-box" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 35px;">
+          <div class="details-box" bgcolor="${EMAIL_COLORS.panel}" style="background-color:${EMAIL_COLORS.panel}; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 35px; color:${EMAIL_COLORS.text};">
             <div class="detail-row" style="margin-bottom: 15px;">
               <span class="detail-label">Orden</span>
-              <span class="detail-value" style="font-size: 20px; color: #0f172a;">#${order.order_number}</span>
+              <span class="detail-value" style="font-size: 20px; color:${EMAIL_COLORS.heading};">#${order.order_number}</span>
             </div>
             <div class="detail-row" style="margin-bottom: 15px;">
               <span class="detail-label">Total recibido</span>
-              <span class="detail-value" style="font-size: 20px; color: #059669;">${formatCurrency(order.total)}</span>
+              <span class="detail-value" style="font-size: 20px; color:${EMAIL_COLORS.darkGreen};">${formatCurrency(order.total)}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Fecha</span>
@@ -264,7 +309,7 @@ export const getAdminPurchaseTemplate = (order, storeContact) => {
 
           <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-top: 30px; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Informaci&oacute;n del Cliente</h3>
           
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 14px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${EMAIL_COLORS.white}" style="width:100%; border-collapse:collapse; margin-bottom:35px; font-size:14px; background-color:${EMAIL_COLORS.white}; color:${EMAIL_COLORS.text};">
             <tbody>
               <tr>
                 <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Nombre</td>
@@ -317,7 +362,7 @@ export const getAdminPurchaseTemplate = (order, storeContact) => {
           </table>
 
           <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-top: 30px; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Resumen de Productos</h3>
-          <table style="width: 100%; border-collapse: collapse;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="${EMAIL_COLORS.white}" style="width:100%; border-collapse:collapse; background-color:${EMAIL_COLORS.white}; color:${EMAIL_COLORS.text};">
             <tbody>
               ${itemsHtml}
             </tbody>
@@ -331,7 +376,7 @@ export const getAdminPurchaseTemplate = (order, storeContact) => {
           </div>
         </div>
         
-        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+        <div bgcolor="${EMAIL_COLORS.panel}" style="background-color:${EMAIL_COLORS.panel}; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
           Este es un correo autom&aacute;tico generado por el sistema de ventas de Galvar Sport.
         </div>
       </div>
@@ -353,9 +398,10 @@ export const getCustomerStatusUpdateTemplate = (order, storeContact) => {
       <meta charset="utf-8">
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${getEmailHeadMeta()}
       ${getBaseStyles()}
     </head>
-    <body>
+    <body bgcolor="${EMAIL_COLORS.page}" style="margin:0; padding:0; background-color:${EMAIL_COLORS.page}; color:${EMAIL_COLORS.text};">
       <div class="container">
         <div class="header">
           ${getStaticLogoHtml()}
